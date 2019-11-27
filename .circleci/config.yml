@@ -95,10 +95,10 @@ workflows:
   build_all_images:
     jobs:
       - windows_visualstudio_aws:
-        filters:
-          branches:
-            only:
-              - master
+          filters:
+            branches:
+              only:
+                - master
 
   daily:
     jobs:
