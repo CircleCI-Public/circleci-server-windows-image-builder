@@ -1,0 +1,26 @@
+#!/bin/bash
+set -euo pipefail
+
+# Returns the most recent image that has already been built from the given
+# Circle job with the given content hash. Fails if nothing is found.
+
+# Usage: get_last_image PROVIDER SHA CIRCLE_JOB REGION
+#
+# PROVIDER:   one of the following providers [ googlecompute | amazon-ebs ]
+# SHA:        the hash of a directory of packer config used to build this image
+# CIRCLE_JOB: the circle job that built this image
+# AWS REGION: the aws region to look for this image in
+#
+# output:   The uniquely identifying name of at most one matching image
+#           (image name in GCE, AMI id in AWS)
+# exit:     0 if at least one image is returned, 1 if no images are returned
+
+MONOREPO_CONTENT_SHA="${1}"
+JOB_NAME="${2}"
+REGION="${3:-}"
+REGION="us-east-1"
+RESPONSE="$(aws ec2 describe-images --filters Name="tag:monorepo_content_sha,Values=${MONOREPO_CONTENT_SHA}" Name="tag:circle_job_name,Values=${JOB_NAME}" --query Images[*] --region "${REGION}")"
+IMAGE=$(echo "${RESPONSE}" | jq --raw-output '.[].ImageId' | sort -r | head -n 1)
+echo "Found $(echo "${RESPONSE}" | jq length) images for ${JOB_NAME} with SHA ${MONOREPO_CONTENT_SHA} in ${REGION}" >/dev/stderr
+echo "${IMAGE}"
+echo "${RESPONSE}" | jq -e '. | length > 0' >/dev/null

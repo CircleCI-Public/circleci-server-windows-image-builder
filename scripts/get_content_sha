@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+
+# Usage get_content_sha TREELIKE
+# TREELIKE:   a path to an object in the git repository. 
+# Output: the git object hash of the object specified by TREELIKE
+TREELIKE="${1}"
+
+git ls-tree HEAD "${TREELIKE}" | cut -d" " -f3 | cut -f1

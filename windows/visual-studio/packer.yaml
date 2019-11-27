@@ -1,0 +1,114 @@
+variables:
+
+  # metadata for tagging
+  circle_build_url: '{{ env "CIRCLE_BUILD_URL"}}'
+  circle_job_name: '{{ env "CIRCLE_JOB" }}'
+  helper_script_folder: "C:\\Program Files\\WindowsPowerShell\\Modules\\"
+  test_script_folder: "C:\\tests"
+  shutdown_script_folder: "C:\\shutdown-scripts"
+  circle_sha: '{{ env "CIRCLE_SHA1" }}'
+
+builders:
+  - type: amazon-ebs
+    access_key: ""
+    secret_key: ""
+    region: '{{ user "ami_region" }}'
+    source_ami_filter:
+      filters:
+        virtualization-type: "hvm"
+        root-device-type: "ebs"
+        name: "Windows_Server-2019-English-Full-ContainersLatest-*"
+      owners: ["self"]
+      most_recent: true
+    instance_type: "m5.2xlarge"
+    ami_name: "windows-server-2019-vs2019-{{timestamp}}"
+    ami_groups: "all"
+    user_data_file: ./windows/visual-studio/user_data.ps1
+    communicator: "winrm"
+    launch_block_device_mappings:
+      - device_name: "/dev/sda1"
+        volume_size: 160
+        volume_type: "gp2"
+        delete_on_termination: true
+    winrm_username: '{{ user "windows_user" }}'
+    winrm_insecure: true
+    winrm_use_ssl: true
+    winrm_timeout: "30m"
+    tags:
+      circle_build_url: '{{ user "circle_build_url" }}'
+      circle_job_name: '{{ user "circle_job_name" }}'
+      circle_sha: '{{ user "circle_sha" }}'
+      monorepo_content_sha: '{{ user "monorepo_content_sha" }}'
+      
+provisioners:
+  - type: file
+    source: "windows/ImageHelpers"
+    destination: "{{user `helper_script_folder`}}"
+  - type: file
+    source: "windows/validation-scripts"
+    destination: "{{user `test_script_folder`}}"
+  - type: file
+    source: "windows/shutdown-scripts"
+    destination: "C:\\"
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows/provision-scripts/install-windows-updates.ps1"
+      - "windows/provision-scripts/init-image.ps1"
+      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
+      - "windows/provision-scripts/dscConfig.ps1"
+      
+  - type: windows-restart
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows/provision-scripts/dscConfig.ps1"
+      
+  - type: windows-restart
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows/provision-scripts/dscConfig.ps1"
+      
+  - type: windows-restart
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows/provision-scripts/dscConfig.ps1"
+
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows/validation-scripts/prep-pester.ps1"
+      - "windows/validation-scripts/run-pester.ps1"
+      - "windows/provision-scripts/scan-image.ps1"
+
+  - type: file
+    source: "C:\\InstalledSoftware.md"
+    destination: "/tmp/artifacts/Vs2019-Server2019-Readme.md"
+    direction: "download"
+
+  - type: file
+    source: "C:\\test-results.xml"
+    destination: "{{ user `test_results_path` }}"
+    direction: "download"
+
+  - type: file
+    source: "C:\\ProgramData\\chocolatey\\logs\\chocolatey.log"
+    destination: "/tmp/artifacts/chocolatey.log"
+    direction: "download"
+
+  - type: windows-restart
+
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows/provision-scripts/install-ssh.ps1"
+      - "windows/provision-scripts/enable-ec2launch.ps1"
+      - "windows/provision-scripts/enable-cleanup.ps1"
