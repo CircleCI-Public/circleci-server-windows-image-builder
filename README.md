@@ -3,7 +3,7 @@
 This folder contains everything you will need to build a Windows image, with the CircleCI dsc resources, on CircleCI. For more information on setting up VM service, which includes specifying your new Windows image for your users, see our [VM Service guide](https://circleci.com/docs/2.0/vm-service/#section=server-administration).
 
 ## Building a Windows Image to use with `machine` Executor
-The following steps will guide you through building a Windows AMI, which you can then specify in the VM Service settings for an installation of CircleCI Server, letting users of your installation run their builds in a Windows environment.
+The following steps will guide you through building a Windows AMI, which you can then specify in the VM Service settings for your installation of CircleCI Server, letting users of your installation run their builds in a Windows environment.
 
 Please note Windows images are built on CircleCI, so we suggest you run through this process once your installation is up and running. Alternatively you can use any other CircleCI account – including on our managed Cloud service – to generate the image:
 
@@ -37,5 +37,4 @@ Please note Windows images are built on CircleCI, so we suggest you run through 
 * Copies: test results, the choco logs, and the software.md (a list of everything we install and test for the presence of) off of the host.
 * Installs the SSH server and enables the cleanup script that runs on shutdown (check out the aws packer scripts for exactly *how* that works).
 * Creates a Windows AMI.
-
 
