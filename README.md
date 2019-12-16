@@ -19,7 +19,7 @@ Please note Windows images are built on CircleCI, so we suggest you run through 
   * AWS_DEFAULT_REGION		
   * AWS_SECRET_ACCESS_KEY
 
-5. Update the owner in `windows/visual-studio/packer.yaml` if you configured the keys under a different account to the once your Circleci Server installation is under.
+5. Update the owner in `windows/visual-studio/packer.yaml` if you configured the keys under a different account to the once your Circleci Server installation is under. If you get any errors around not being able to find a default VPC, you will need to specify a `vpc_id` and `subnet_id` in this file.
 
 6. Click Rerun Workflow from the job details page to rerun the Windows image buider
 
