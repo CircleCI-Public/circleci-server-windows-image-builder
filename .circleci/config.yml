@@ -8,7 +8,7 @@ jobs:
     - run:
         command: apk update
     - run:
-        command: apk add --no-progress python3 curl jq
+        command: apk add --no-progress python3 curl jq git
     - run:
         command: pip3 install awscli
     - attach_workspace:
