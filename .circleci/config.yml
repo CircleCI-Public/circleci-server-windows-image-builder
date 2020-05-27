@@ -10,18 +10,7 @@ jobs:
     - run:
         command: apk add --no-progress python3 curl jq git bash
     - run:
-        command: pip3 install awscli
-    - attach_workspace:
-        at: /tmp/workspace
-    - run:
-        name: ensure /tmp/artifacts/ exists
-        command: mkdir -p /tmp/artifacts/
-    - run:
-        name: install python3
-        command: apk add --no-progress --no-cache python3
-    - run:
-        name: install pyyaml
-        command: pip3 install pyyaml
+        command: pip3 install awscli pyyaml
     - run:
         name: convert windows/visual-studio/packer.yaml to windows/visual-studio/packer.json
         command: |
@@ -29,47 +18,48 @@ jobs:
             | python3 -c 'import sys, yaml, json; y=yaml.safe_load(sys.stdin.read()); print(json.dumps(y))' \
             > ./windows/visual-studio/packer.json
     - run:
-        command: mkdir /tmp/results
+        command: mkdir -p /tmp/results /tmp/artifacts
     - run:
         name: Build images
         no_output_timeout: 120m
         environment:
-          AWS_MAX_ATTEMPTS: 120
-          AWS_POLL_DELAY_SECONDS: 60
-        command: "MONOREPO_CONTENT_SHA=\"$(./scripts/get_content_sha windows)\"\nif [[ \"\" ]]; then\n  echo Fetching the output image of \n  SOURCE_IMAGE=$(cat /tmp/workspace/)\n  echo Using $SOURCE_IMAGE as the base image\n  SOURCE_IMAGE_VAR=\"--var source_image=$SOURCE_IMAGE\"\nfi\n[[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX=\"-dev\"\n\nWINDOWS_USER=\"Administrator\"\n\n./scripts/get_last_image amazon-ebs \"${MONOREPO_CONTENT_SHA}\" \"${CIRCLE_JOB}\" && {\n    echo \"amazon-ebs image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build\"\n  } || packer build \\\n  -machine-readable \\\n  --only amazon-ebs \\\n  --var monorepo_content_sha=\"${MONOREPO_CONTENT_SHA}\" \\\n  --var image_family_suffix=\"${IMAGE_FAMILY_SUFFIX}\" \\\n  --var ami_region=\"us-east-1\" \\\n  --var windows_user=\"${WINDOWS_USER}\" \\\n  --var test_results_path=\"/tmp/results/test-results.xml\" \\\n  ${SOURCE_IMAGE_VAR} \\\n   \\\n  windows/visual-studio/packer.json | tee /tmp/artifacts/amazon-ebs-build.log\n"
+          AWS_MAX_ATTEMPTS: "120"
+          AWS_POLL_DELAY_SECONDS: "60"
+        command: |
+          MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+          [[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX="-dev"
+
+          WINDOWS_USER="Administrator"
+
+          ./scripts/get_last_image amazon-ebs "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
+              echo "amazon-ebs image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
+            } || packer build \
+            -machine-readable \
+            --only amazon-ebs \
+            --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
+            --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
+            --var ami_region="${AWS_DEFAULT_REGION}" \
+            --var windows_user="${WINDOWS_USER}" \
+            --var test_results_path="/tmp/results/test-results.xml" \
+            ${SOURCE_IMAGE_VAR} \
+            \
+            windows/visual-studio/packer.json | tee /tmp/artifacts/amazon-ebs-build.log
     - run:
         name: Summarize results
         command: |
+          MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+
           BUILD_LOG_PATH="/tmp/artifacts/amazon-ebs-build.log"
           if [[ -f $BUILD_LOG_PATH ]]; then
             IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
             echo Recording just-built image $IMAGE_NAME as the output of this job
           else
-            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
-
             IMAGE_NAME=$(./scripts/get_last_image amazon-ebs "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
             echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
           fi
 
           echo "Image ${IMAGE_NAME} is the latest image with content SHA ${MONOREPO_CONTENT_SHA}."
-
-          if [[ -n "" ]]; then
-            echo $IMAGE_NAME | tee /tmp/artifacts/
-          else
-            echo "output_as orb parameter is not set. $IMAGE_NAME will not be recorded as the output of this job."
-          fi
-    - run:
-        name: Copy image to regions
-        command: |
-          if [[ $CIRCLE_BRANCH == master ]]; then
-            ./scripts/copy-ami-to-regions.sh windows ${CIRCLE_JOB} us-east-1
-          else
-            echo 'Branch is not master. Copying will be skipped.'
-          fi
-    - persist_to_workspace:
-        root: /tmp/artifacts
-        paths:
-        - ''
+          echo $IMAGE_NAME > /tmp/artifacts/image-name.txt
     - run:
         name: save test results if there are any
         command: |
@@ -80,6 +70,7 @@ jobs:
         path: /tmp/results
     - store_artifacts:
         path: /tmp/artifacts
+
   gc_old_ec2_instances:
     docker:
     - image: circleci/python:3.7
@@ -92,13 +83,10 @@ jobs:
     - run:
         command: scripts/gc-ec2-instances.sh
 workflows:
+  version: 2
   build_all_images:
     jobs:
-      - windows_visualstudio_aws:
-          filters:
-            branches:
-              only:
-                - master
+      - windows_visualstudio_aws
 
   daily:
     jobs:
@@ -110,4 +98,3 @@ workflows:
           branches:
             only:
             - master
-  version: 2

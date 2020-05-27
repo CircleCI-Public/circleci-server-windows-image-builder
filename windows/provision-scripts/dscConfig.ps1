@@ -14,6 +14,7 @@ Configuration CircleBuildHost {
         CircleBuildAgentPreReq buildAgentPreReq { }
         CircleCloudTools cloudTools { }
         CircleDevTools devTools { }
+        CircleTDR tdr { }
         CircleMicrosoftTools MicrosoftTools { }
     }
 }
@@ -30,5 +31,4 @@ If (-not $(Test-Path -Path '.\CircleBuildHost')) {
     CircleBuildHost -ConfigurationData $cd
 }
 Update-Paths
-Start-DscConfiguration -Path .\CircleBuildHost  -Wait -Force -Verbose
-
+Start-DscConfiguration -Path .\CircleBuildHost -Wait -Force -Verbose

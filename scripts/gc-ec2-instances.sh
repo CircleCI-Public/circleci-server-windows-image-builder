@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-region="us-east-1"
+region="$AWS_DEFAULT_REGION"
 # --query performs client-side response filtering. If there are too
 # many instances, it's possible that instances that satisfy our
 # criteria exist, but aren't returned in the first page of
