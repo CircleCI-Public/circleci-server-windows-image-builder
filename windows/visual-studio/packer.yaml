@@ -1,5 +1,4 @@
 variables:
-
   # metadata for tagging
   circle_build_url: '{{ env "CIRCLE_BUILD_URL"}}'
   circle_job_name: '{{ env "CIRCLE_JOB" }}'
@@ -39,7 +38,11 @@ builders:
       circle_job_name: '{{ user "circle_job_name" }}'
       circle_sha: '{{ user "circle_sha" }}'
       monorepo_content_sha: '{{ user "monorepo_content_sha" }}'
-      
+    run_tags:
+      circle_build_url: '{{ user "circle_build_url" }}'
+    run_volume_tags:
+      circle_build_url: '{{ user "circle_build_url" }}'
+
 provisioners:
   - type: file
     source: "windows/ImageHelpers"
@@ -56,29 +59,17 @@ provisioners:
     scripts:
       - "windows/provision-scripts/install-windows-updates.ps1"
       - "windows/provision-scripts/init-image.ps1"
-      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
       - "windows/provision-scripts/dscConfig.ps1"
-      
+
   - type: windows-restart
+
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
       - "windows/provision-scripts/dscConfig.ps1"
-      
+
   - type: windows-restart
-  - type: powershell
-    elevated_user: '{{ user "windows_user" }}'
-    elevated_password: "{{.WinRMPassword}}"
-    scripts:
-      - "windows/provision-scripts/dscConfig.ps1"
-      
-  - type: windows-restart
-  - type: powershell
-    elevated_user: '{{ user "windows_user" }}'
-    elevated_password: "{{.WinRMPassword}}"
-    scripts:
-      - "windows/provision-scripts/dscConfig.ps1"
 
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
@@ -86,7 +77,6 @@ provisioners:
     scripts:
       - "windows/validation-scripts/prep-pester.ps1"
       - "windows/validation-scripts/run-pester.ps1"
-      - "windows/provision-scripts/scan-image.ps1"
 
   - type: file
     source: "C:\\InstalledSoftware.md"
@@ -103,8 +93,6 @@ provisioners:
     destination: "/tmp/artifacts/chocolatey.log"
     direction: "download"
 
-  - type: windows-restart
-
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
@@ -112,3 +100,5 @@ provisioners:
       - "windows/provision-scripts/install-ssh.ps1"
       - "windows/provision-scripts/enable-ec2launch.ps1"
       - "windows/provision-scripts/enable-cleanup.ps1"
+      # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
+      # - "windows/provision-scripts/localize.ps1"

@@ -2,11 +2,11 @@
   It "the dotnet cli tool is on the path" {
     $(Get-Command -Name 'dotnet') | Should -HaveCount 1
   }
-  It "4 versions of the sdk are installed" {
-    $(dotnet --list-sdks).Split([System.Environment]::NewLine).Count | Should -EQ 2
+  It "3 versions of the sdk are installed" {
+    $(dotnet --list-sdks).Split([System.Environment]::NewLine).Count | Should -EQ 3
   }
   It "12 versions of the runtime are installed" {
-    $(dotnet --list-runtimes).Split([System.Environment]::NewLine).Count | Should -EQ 9
+    $(dotnet --list-runtimes).Split([System.Environment]::NewLine).Count | Should -EQ 12
   }
 }
 
