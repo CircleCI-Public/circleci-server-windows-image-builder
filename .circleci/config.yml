@@ -88,7 +88,8 @@ workflows:
   version: 2
   build_all_images:
     jobs:
-      - windows_visualstudio_aws
+      - windows_visualstudio_aws:
+          context: ami-builder
 
   daily:
     jobs:
