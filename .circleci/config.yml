@@ -1,4 +1,5 @@
 version: 2
+
 jobs:
   windows_visualstudio_aws:
     docker:
@@ -31,7 +32,7 @@ jobs:
 
           WINDOWS_USER="Administrator"
 
-          ./scripts/get_last_image amazon-ebs "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
+          ./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
               echo "amazon-ebs image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
             } || packer build \
             -machine-readable \
@@ -54,7 +55,7 @@ jobs:
             IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
             echo Recording just-built image $IMAGE_NAME as the output of this job
           else
-            IMAGE_NAME=$(./scripts/get_last_image amazon-ebs "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
+            IMAGE_NAME=$(./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
             echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
           fi
 
@@ -82,6 +83,7 @@ jobs:
         command: sudo apt-get update && sudo apt-get install jq
     - run:
         command: scripts/gc-ec2-instances.sh
+
 workflows:
   version: 2
   build_all_images:
