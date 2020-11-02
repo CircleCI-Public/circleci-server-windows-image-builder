@@ -3,86 +3,86 @@ version: 2
 jobs:
   windows_visualstudio_aws:
     docker:
-    - image: hashicorp/packer:latest
+      - image: hashicorp/packer:latest
     steps:
-    - checkout
-    - run:
-        command: apk update
-    - run:
-        command: apk add --no-progress python3 py-pip curl jq git bash
-    - run:
-        command: pip3 install awscli pyyaml
-    - run:
-        name: convert windows/visual-studio/packer.yaml to windows/visual-studio/packer.json
-        command: |
-          cat ./windows/visual-studio/packer.yaml \
-            | python3 -c 'import sys, yaml, json; y=yaml.safe_load(sys.stdin.read()); print(json.dumps(y))' \
-            > ./windows/visual-studio/packer.json
-    - run:
-        command: mkdir -p /tmp/results /tmp/artifacts
-    - run:
-        name: Build images
-        no_output_timeout: 120m
-        environment:
-          AWS_MAX_ATTEMPTS: "120"
-          AWS_POLL_DELAY_SECONDS: "60"
-        command: |
-          MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
-          [[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX="-dev"
+      - checkout
+      - run:
+          command: apk update
+      - run:
+          command: apk add --no-progress python3 py-pip curl jq git bash
+      - run:
+          command: pip3 install awscli pyyaml
+      - run:
+          name: convert windows/visual-studio/packer.yaml to windows/visual-studio/packer.json
+          command: |
+            cat ./windows/visual-studio/packer.yaml \
+              | python3 -c 'import sys, yaml, json; y=yaml.safe_load(sys.stdin.read()); print(json.dumps(y))' \
+              > ./windows/visual-studio/packer.json
+      - run:
+          command: mkdir -p /tmp/results /tmp/artifacts
+      - run:
+          name: Build images
+          no_output_timeout: 120m
+          environment:
+            AWS_MAX_ATTEMPTS: "120"
+            AWS_POLL_DELAY_SECONDS: "60"
+          command: |
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+            [[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX="-dev"
 
-          WINDOWS_USER="Administrator"
+            WINDOWS_USER="Administrator"
 
-          ./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
-              echo "amazon-ebs image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
-            } || packer build \
-            -machine-readable \
-            --only amazon-ebs \
-            --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
-            --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
-            --var ami_region="${AWS_DEFAULT_REGION}" \
-            --var windows_user="${WINDOWS_USER}" \
-            --var test_results_path="/tmp/results/test-results.xml" \
-            ${SOURCE_IMAGE_VAR} \
-            \
-            windows/visual-studio/packer.json | tee /tmp/artifacts/amazon-ebs-build.log
-    - run:
-        name: Summarize results
-        command: |
-          MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+            ./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
+                echo "amazon-ebs image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
+              } || packer build \
+              -machine-readable \
+              --only amazon-ebs \
+              --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
+              --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
+              --var ami_region="${AWS_DEFAULT_REGION}" \
+              --var windows_user="${WINDOWS_USER}" \
+              --var test_results_path="/tmp/results/test-results.xml" \
+              ${SOURCE_IMAGE_VAR} \
+              \
+              windows/visual-studio/packer.json | tee /tmp/artifacts/amazon-ebs-build.log
+      - run:
+          name: Summarize results
+          command: |
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
 
-          BUILD_LOG_PATH="/tmp/artifacts/amazon-ebs-build.log"
-          if [[ -f $BUILD_LOG_PATH ]]; then
-            IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
-            echo Recording just-built image $IMAGE_NAME as the output of this job
-          else
-            IMAGE_NAME=$(./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
-            echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
-          fi
+            BUILD_LOG_PATH="/tmp/artifacts/amazon-ebs-build.log"
+            if [[ -f $BUILD_LOG_PATH ]]; then
+              IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
+              echo Recording just-built image $IMAGE_NAME as the output of this job
+            else
+              IMAGE_NAME=$(./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
+              echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
+            fi
 
-          echo "Image ${IMAGE_NAME} is the latest image with content SHA ${MONOREPO_CONTENT_SHA}."
-          echo $IMAGE_NAME > /tmp/artifacts/image-name.txt
-    - run:
-        name: save test results if there are any
-        command: |
-          if [[ -f /tmp/results/test-results.xml ]]; then
-            cp /tmp/results/test-results.xml /tmp/artifacts
-          fi
-    - store_test_results:
-        path: /tmp/results
-    - store_artifacts:
-        path: /tmp/artifacts
+            echo "Image ${IMAGE_NAME} is the latest image with content SHA ${MONOREPO_CONTENT_SHA}."
+            echo $IMAGE_NAME > /tmp/artifacts/image-name.txt
+      - run:
+          name: save test results if there are any
+          command: |
+            if [[ -f /tmp/results/test-results.xml ]]; then
+              cp /tmp/results/test-results.xml /tmp/artifacts
+            fi
+      - store_test_results:
+          path: /tmp/results
+      - store_artifacts:
+          path: /tmp/artifacts
 
   gc_old_ec2_instances:
     docker:
-    - image: circleci/python:3.7
+      - image: circleci/python:3.7
     steps:
-    - checkout
-    - run:
-        command: sudo pip3 install awscli
-    - run:
-        command: sudo apt-get update && sudo apt-get install jq
-    - run:
-        command: scripts/gc-ec2-instances.sh
+      - checkout
+      - run:
+          command: sudo pip3 install awscli
+      - run:
+          command: sudo apt-get update && sudo apt-get install jq
+      - run:
+          command: scripts/gc-ec2-instances.sh
 
 workflows:
   version: 2
