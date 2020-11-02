@@ -16,11 +16,11 @@ Please note that Windows images are built on CircleCI, so we suggest you run thr
 
     2. Make sure that you have **an access key** for an AWS IAM User that has sufficient permission to create AMIs using Packer. Refer to [documentation of Packer](https://www.packer.io/docs/builders/amazon#authentication) for details.
 
-2. First, **configure `ami-builder` context that contains a required AWS access key as env vars**. Configure the env vars below accordingly:
+2. First, **configure `circleci-server-ami-builder` context that contains a required AWS access key as env vars**. In `ami-builder` context, populate the env vars below:
 
-    * AWS_ACCESS_KEY_ID
-    * AWS_DEFAULT_REGION
-    * AWS_SECRET_ACCESS_KEY
+    * `AWS_ACCESS_KEY_ID` (Access key ID of your access key)
+    * `AWS_SECRET_ACCESS_KEY` (Secret access key of your access key)
+    * `AWS_DEFAULT_REGION` (Region where your CircleCI Server is hosted, e.g. us-east-1, us-west-1, ap-noartheast-1. Created AMI will be available only for this region.)
 
     [Our official document](https://circleci.com/docs/2.0/contexts/) would help you setting up contexts.
 
