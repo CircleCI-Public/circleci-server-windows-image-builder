@@ -90,12 +90,12 @@ workflows:
   build_all_images:
     jobs:
       - windows_visualstudio_aws:
-          context: ami-builder
+          context: circleci-server-ami-builder
 
   daily:
     jobs:
       - gc_old_ec2_instances:
-          context: ami-builder
+          context: circleci-server-ami-builder
     triggers:
       - schedule:
           cron: 17 12 * * *
