@@ -8,5 +8,7 @@ if (Test-Path -Path "C:\Windows\Temp\PackerCleanup") {
   New-NetFirewallRule -DisplayName "Allow GCE Metadata" -Direction Inbound -LocalPort Any -RemotePort Any -Protocol Any -RemoteAddress '169.254.169.254' -LocalAddress Any
   # vm-service uses SSH on port 22. build-agent uses 54782
   New-NetFirewallRule -DisplayName "Allow SSH" -Direction Inbound -LocalPort 22,54782 -RemotePort Any -Protocol TCP -RemoteAddress Any -LocalAddress Any
+  # Enable default RDP port for debugging
+  Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
   Remove-Item -Path "C:\Windows\Temp\PackerCleanup" -Force
 }
