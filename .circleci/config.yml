@@ -1,17 +1,23 @@
 version: 2
 
 jobs:
-  windows_visualstudio_aws:
+  gc_old_ec2_instances:
     docker:
-      - image: hashicorp/packer:latest
+      - image: circleci/python:3.7
     steps:
       - checkout
-      - run:
-          command: apk update
-      - run:
-          command: apk add --no-progress python3 curl jq git bash py3-pip
-      - run:
-          command: pip3 install awscli pyyaml
+      - run: sudo pip3 install awscli
+      - run: sudo apt-get update && sudo apt-get install jq
+      - run: scripts/gc-ec2-instances.sh
+
+  windows_visualstudio_aws:
+    docker:
+      - image: hashicorp/packer:1.4.5
+    steps:
+      - checkout
+      - run: apk update
+      - run: apk add --no-progress python3 curl jq
+      - run: pip3 install awscli pyyaml
       - run:
           name: convert windows/visual-studio/packer.yaml to windows/visual-studio/packer.json
           command: |
@@ -24,8 +30,11 @@ jobs:
           name: Build images
           no_output_timeout: 120m
           environment:
-            AWS_MAX_ATTEMPTS: "120"
-            AWS_POLL_DELAY_SECONDS: "60"
+            # The AMI can take a very long time to be ready. These env
+            # vars make packer wait 2 hours for this to happen before
+            # giving up.
+            AWS_MAX_ATTEMPTS: 120
+            AWS_POLL_DELAY_SECONDS: 60
           command: |
             MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
             [[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX="-dev"
@@ -48,13 +57,13 @@ jobs:
       - run:
           name: Summarize results
           command: |
-            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
-
             BUILD_LOG_PATH="/tmp/artifacts/amazon-ebs-build.log"
             if [[ -f $BUILD_LOG_PATH ]]; then
               IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
               echo Recording just-built image $IMAGE_NAME as the output of this job
             else
+              MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+
               IMAGE_NAME=$(./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
               echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
             fi
@@ -67,22 +76,12 @@ jobs:
             if [[ -f /tmp/results/test-results.xml ]]; then
               cp /tmp/results/test-results.xml /tmp/artifacts
             fi
+
       - store_test_results:
           path: /tmp/results
+
       - store_artifacts:
           path: /tmp/artifacts
-
-  gc_old_ec2_instances:
-    docker:
-      - image: circleci/python:3.7
-    steps:
-      - checkout
-      - run:
-          command: sudo pip3 install awscli
-      - run:
-          command: sudo apt-get update && sudo apt-get install jq
-      - run:
-          command: scripts/gc-ec2-instances.sh
 
 workflows:
   version: 2
@@ -98,7 +97,7 @@ workflows:
           context: circleci-server-ami-builder
     triggers:
       - schedule:
-          cron: 17 12 * * *
+          cron: "17 12 * * *"
           filters:
             branches:
               only:
