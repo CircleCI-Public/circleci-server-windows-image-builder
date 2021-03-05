@@ -17,7 +17,7 @@ builders:
         virtualization-type: "hvm"
         root-device-type: "ebs"
         name: "Windows_Server-2019-English-Full-ContainersLatest-*"
-      owners: ["amazon"]
+      owners: ["801119661308"]
       most_recent: true
     instance_type: "m5.2xlarge"
     ami_name: "windows-server-2019-vs2019-{{timestamp}}"
@@ -47,18 +47,21 @@ provisioners:
   - type: file
     source: "windows/ImageHelpers"
     destination: "{{user `helper_script_folder`}}"
+
   - type: file
     source: "windows/validation-scripts"
     destination: "{{user `test_script_folder`}}"
+
   - type: file
     source: "windows/shutdown-scripts"
     destination: "C:\\"
+
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
       - "windows/provision-scripts/install-windows-updates.ps1"
-      - "windows/provision-scripts/init-image.ps1"
+      - "windows/provision-scripts/cleanup-useless-defaults.ps1"
       - "windows/provision-scripts/dscConfig.ps1"
 
   - type: windows-restart
@@ -69,13 +72,26 @@ provisioners:
     scripts:
       - "windows/provision-scripts/dscConfig.ps1"
 
+      # Uncomment below to change the system locale to Japan (CP932)
+      # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
+      # - "windows/provision-scripts/localize.ps1"
+
+  - type: file
+    source: "windows/proprietary/PsExec64.exe"
+    destination: "C:\\Windows\\System32\\"
+    direction: "upload"
+
   - type: windows-restart
 
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
-      - "windows/validation-scripts/prep-pester.ps1"
+      - "windows/provision-scripts/install-ssh.ps1"
+      - "windows/provision-scripts/update-pester.ps1"
+      - "windows/provision-scripts/enable-ec2launch.ps1"
+      - "windows/provision-scripts/enable-cleanup.ps1"
+      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
       - "windows/validation-scripts/run-pester.ps1"
 
   - type: file
@@ -92,13 +108,3 @@ provisioners:
     source: "C:\\ProgramData\\chocolatey\\logs\\chocolatey.log"
     destination: "/tmp/artifacts/chocolatey.log"
     direction: "download"
-
-  - type: powershell
-    elevated_user: '{{ user "windows_user" }}'
-    elevated_password: "{{.WinRMPassword}}"
-    scripts:
-      - "windows/provision-scripts/install-ssh.ps1"
-      - "windows/provision-scripts/enable-ec2launch.ps1"
-      - "windows/provision-scripts/enable-cleanup.ps1"
-      # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
-      # - "windows/provision-scripts/localize.ps1"

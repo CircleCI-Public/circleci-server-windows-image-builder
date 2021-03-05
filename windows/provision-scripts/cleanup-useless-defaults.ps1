@@ -30,6 +30,11 @@ function Enable-DotNet35 {
     Write-Host ".NET Framework 3.5 has been enabled."
 }
 
+function Disable-NetworkWizard {
+    New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Network\NewNetworkWindowOff" -Force
+    Write-Host "Network Wizard Window has been disabled."
+}
+
 Write-Host "Disable UAC"
 Disable-UserAccessControl
 
@@ -61,8 +66,10 @@ Invoke-WebRequest -Uri 'https://github.com/chocolatey/cChoco/archive/development
 Expand-Archive -LiteralPath 'C:\cChoco.zip' -DestinationPath 'C:\\'
 Copy-Item -Path 'C:\cChoco-development\*' -Recurse -Destination 'C:\Program Files\WindowsPowerShell\Modules\cChoco\'
 Install-Module -Name ComputerManagementDsc -Force
-Install-Module -Name CircleCIDSC -RequiredVersion 1.0.1381 -Force
+Install-Module -Name CircleCIDSC -RequiredVersion 1.0.1502 -Force
 Set-Item -Path WSMan:\localhost\MaxEnvelopeSizeKb -Value 512000
 
 Write-Host "Enable .NET Framework 3.5"
 Enable-DotNet35
+
+Disable-NetworkWizard

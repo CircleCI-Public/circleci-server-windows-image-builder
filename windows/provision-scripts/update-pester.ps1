@@ -10,5 +10,4 @@ icacls $module /reset
 icacls $module /grant Administrators:'F' /inheritance:d /T
 Remove-Item -Path $module -Recurse -Force -Confirm:$false
 
-Install-Module -Name Pester -Force -RequiredVersion 4.9.0
-Update-Module -Name Pester
+Install-Module -Name Pester -Force -SkipPublisherCheck
