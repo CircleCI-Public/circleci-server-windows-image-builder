@@ -1,23 +1,48 @@
+# We will continue using config version 2 for backward compatibility with server 2.x
 version: 2
 
-jobs:
-  gc_old_ec2_instances:
-    docker:
-      - image: circleci/python:3.7
-    steps:
-      - checkout
-      - run: sudo pip3 install awscli
-      - run: sudo apt-get update && sudo apt-get install jq
-      - run: scripts/gc-ec2-instances.sh
-
-  windows_visualstudio_aws:
+library:
+  build_image: &build_image
     docker:
       - image: hashicorp/packer:1.4.5
     steps:
+      - run:
+          name: Determine which platform we use
+          command: |
+            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws" ] && [ ! -z "$AWS_DEFAULT_REGION" ]
+            then
+              echo 'export PROVIDER="amazon-ebs"' | tee -a $BASH_ENV
+            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp" ] && [ ! -z "$GCE_DEFAULT_ZONE" ]
+            then
+              echo 'export PROVIDER="googlecompute"' | tee -a $BASH_ENV
+            else
+              echo 'No provider available. Gracefully exiting.'
+              circleci-agent step halt
+              exit
+            fi
       - checkout
       - run: apk update
       - run: apk add --no-progress python3 curl jq
       - run: pip3 install awscli pyyaml
+      - run:
+          name: install and configure gcloud sdk as needed
+          command: |
+            if [ ! -z "${GCE_SERVICE_CREDENTIALS_BASE64}" ]
+            then
+              echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
+                | base64 -d \
+                > /tmp/gce-credentials.json
+
+              VERSION=267.0.0-linux-x86_64
+              curl --silent --show-error --location --output /tmp/google-cloud-sdk-${VERSION}.tar.gz \
+              "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-${VERSION}.tar.gz"
+
+              echo "e1900f12c0dffaa96fb1435afb342e829fd814bcffba96b8c3b58d55c518f4d3  /tmp/google-cloud-sdk-${VERSION}.tar.gz" | sha256sum -c -
+
+              tar xf /tmp/google-cloud-sdk-${VERSION}.tar.gz
+
+              ./google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=/tmp/gce-credentials.json
+            fi
       - run:
           name: convert windows/visual-studio/packer.yaml to windows/visual-studio/packer.json
           command: |
@@ -39,32 +64,44 @@ jobs:
             MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
             [[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX="-dev"
 
-            WINDOWS_USER="Administrator"
+            case "${PROVIDER}" in
+              googlecompute)
+                WINDOWS_USER="circleci_packer"
+                ;;
+              amazon-ebs)
+                WINDOWS_USER="Administrator"
+                ;;
+              *)
+                echo "Unrecognized packer_provider value: ${PROVIDER}."
+                exit 1
+                ;;
+            esac
 
-            ./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
-                echo "amazon-ebs image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
+            ./scripts/get_last_image "${PROVIDER}" "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
+                echo "${PROVIDER} image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
               } || packer build \
               -machine-readable \
-              --only amazon-ebs \
+              --only "${PROVIDER}" \
+              --var project_id="${CLOUDSDK_CORE_PROJECT}" \
+              --var account_file=/tmp/gce-credentials.json \
+              --var gce_zone="${GCE_DEFAULT_ZONE}" \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
               --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
               --var ami_region="${AWS_DEFAULT_REGION}" \
               --var windows_user="${WINDOWS_USER}" \
               --var test_results_path="/tmp/results/test-results.xml" \
               ${SOURCE_IMAGE_VAR} \
-              \
-              windows/visual-studio/packer.json | tee /tmp/artifacts/amazon-ebs-build.log
+              windows/visual-studio/packer.json | tee /tmp/artifacts/image-build.log
       - run:
           name: Summarize results
           command: |
-            BUILD_LOG_PATH="/tmp/artifacts/amazon-ebs-build.log"
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+            BUILD_LOG_PATH="/tmp/artifacts/image-build.log"
             if [[ -f $BUILD_LOG_PATH ]]; then
               IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
               echo Recording just-built image $IMAGE_NAME as the output of this job
             else
-              MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
-
-              IMAGE_NAME=$(./scripts/get_last_image "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
+              IMAGE_NAME=$(./scripts/get_last_image "${PROVIDER}" "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
               echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
             fi
 
@@ -83,18 +120,92 @@ jobs:
       - store_artifacts:
           path: /tmp/artifacts
 
+jobs:
+  gc_old_ec2_instances:
+    docker:
+      - image: circleci/python:3.7
+    steps:
+      - run:
+          name: check that it should work for AWS
+          command: |
+            if [ ! -z "${AWS_ACCESS_KEY_ID}" ]
+            then
+              circleci-agent step halt
+            fi
+      - checkout
+      - run: sudo pip3 install awscli
+      - run: sudo apt-get update && sudo apt-get install jq
+      - run: scripts/gc-ec2-instances.sh
+
+  gc_old_gce_instances:
+    docker:
+      - image: google/cloud-sdk:263.0.0-alpine
+    steps:
+      - run:
+          name: generate credentials or halt the job
+          command: |
+            if [ ! -z "${GCE_SERVICE_CREDENTIALS_BASE64}" ]
+            then
+              echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
+                | base64 -d \
+                > /tmp/gce-credentials.json
+            else
+              circleci-agent step halt
+            fi
+      - run: |
+          gcloud auth activate-service-account --key-file /tmp/gce-credentials.json
+          apk add --no-cache coreutils
+      - run:
+          name: Create GC script, then run it
+          command: |
+            cat \<<"EOF" > /usr/local/bin/run-gc
+            #!/bin/bash
+            #
+            # Stops any RUNNING packer VMs that are older than 48 hours. You can
+            # also pass a max age, in hours, for running VMs.
+            #
+            # IMPORTANT: Please be extremely cautious if editing this script as
+            # these instances are in the same project as our production VMs. A
+            # missing or incorrect filter could easily delete all existing VMs
+            # out from under us.
+            set -euo pipefail
+            MAX_AGE_HOURS=${1:-"48"}
+            DAYS_AGO=$(date -u -Iseconds --date="$MAX_AGE_HOURS hours ago")
+            gcloud compute instances list \
+              --filter="status=(RUNNING,TERMINATED) AND name~packer-.+ AND creationTimestamp < ${DAYS_AGO}" \
+              --project=${CLOUDSDK_CORE_PROJECT} \
+              --format='csv[no-heading,separator=" "](name,zone)' > /tmp/instances.csv
+            while read name zone; do
+              gcloud compute instances delete \
+                --zone ${zone} \
+                --quiet \
+                $name
+            done < /tmp/instances.csv
+            EOF
+            chmod +x /usr/local/bin/run-gc
+
+            /usr/local/bin/run-gc
+
+  windows_visualstudio_gcp: *build_image
+
+  windows_visualstudio_aws: *build_image
+
 workflows:
   version: 2
 
   build_all_images:
     jobs:
+      - windows_visualstudio_gcp:
+          context: circleci-server-image-builder
       - windows_visualstudio_aws:
-          context: circleci-server-ami-builder
+          context: circleci-server-image-builder
 
   daily:
     jobs:
+      - gc_old_gce_instances:
+          context: circleci-server-image-builder
       - gc_old_ec2_instances:
-          context: circleci-server-ami-builder
+          context: circleci-server-image-builder
     triggers:
       - schedule:
           cron: "17 12 * * *"

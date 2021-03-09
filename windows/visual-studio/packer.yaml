@@ -1,4 +1,8 @@
 variables:
+  # GCE account related
+  project_id: notnoopci-prototype
+  account_file: ""
+
   # metadata for tagging
   circle_build_url: '{{ env "CIRCLE_BUILD_URL"}}'
   circle_job_name: '{{ env "CIRCLE_JOB" }}'
@@ -6,6 +10,9 @@ variables:
   test_script_folder: "C:\\tests"
   shutdown_script_folder: "C:\\shutdown-scripts"
   circle_sha: '{{ env "CIRCLE_SHA1" }}'
+  circle_hostname: '{{ split (env "CIRCLE_BUILD_URL") "/" 2 }}'
+  circle_workflow_id: '{{ env "CIRCLE_WORKFLOW_ID" }}'
+  gce_region: '{{ split (user "gce_zone") "-" 0 }}'
 
 builders:
   - type: amazon-ebs
@@ -43,6 +50,51 @@ builders:
     run_volume_tags:
       circle_build_url: '{{ user "circle_build_url" }}'
 
+  - type: googlecompute
+    image_name: windows-server-2019-vs2019-{{timestamp}}
+    image_family: windows-server-2019-vs2019
+    source_image_family: windows-2019-for-containers
+    # This used to be 80GB but visual studio consumed an addtional 30GB. So This
+    # Was Doubled
+    disk_size: 160
+    # This is pd-ssd so that virus scan happens at a reasonable speed.
+    disk_type: pd-ssd
+
+    # Virus scan is much faster on a machine with a larger modern processer.
+    machine_type: "n1-standard-8"
+
+    project_id: '{{ user "project_id" }}'
+    account_file: '{{ user "account_file" }}'
+    zone: '{{ user "gce_zone" }}'
+    tags:
+      - packer-winrm
+
+    state_timeout: "30m"
+
+    preemptible: false
+
+    communicator: "winrm"
+    winrm_username: '{{ user "windows_user" }}'
+    winrm_insecure: true
+    winrm_use_ssl: true
+    winrm_timeout: "30m"
+
+    metadata:
+      windows-startup-script-cmd: |
+        winrm set winrm/config/service/auth @{Basic=\"true\"}
+
+      windows-shutdown-script-ps1: |
+        & {{user `shutdown_script_folder`}}\GCEShutdownScript.ps1
+        & {{user `shutdown_script_folder`}}\ShutdownScript.ps1
+
+    image_labels:
+      region: '{{ user "gce_region" }}'
+      circle_hostname: '{{ user "circle_hostname" | clean_image_name }}'
+      circle_workflow_id: '{{ user "circle_workflow_id" | clean_image_name }}'
+      circle_job_name: '{{ user "circle_job_name" | clean_image_name }}'
+      circle_sha: '{{ user "circle_sha" | clean_image_name }}'
+      monorepo_content_sha: '{{ user "monorepo_content_sha" | clean_image_name }}'
+
 provisioners:
   - type: file
     source: "windows/ImageHelpers"
@@ -71,7 +123,6 @@ provisioners:
     elevated_password: "{{.WinRMPassword}}"
     scripts:
       - "windows/provision-scripts/dscConfig.ps1"
-
       # Uncomment below to change the system locale to Japan (CP932)
       # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
       # - "windows/provision-scripts/localize.ps1"

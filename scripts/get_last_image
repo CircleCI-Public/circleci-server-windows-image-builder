@@ -4,8 +4,9 @@ set -euo pipefail
 # Returns the most recent image that has already been built from the given
 # Circle job with the given content hash. Fails if nothing is found.
 
-# Usage: get_last_image SHA CIRCLE_JOB REGION
+# Usage: get_last_image PROVIDER SHA CIRCLE_JOB REGION
 #
+# PROVIDER:   one of the following providers [ googlecompute | amazon-ebs ]
 # SHA:        the hash of a directory of packer config used to build this image
 # CIRCLE_JOB: the circle job that built this image
 # AWS REGION: the aws region to look for this image in
@@ -14,11 +15,46 @@ set -euo pipefail
 #           (image name in GCE, AMI id in AWS)
 # exit:     0 if at least one image is returned, 1 if no images are returned
 
-MONOREPO_CONTENT_SHA="${1}"
-JOB_NAME="${2}"
-REGION="${3:-$AWS_DEFAULT_REGION}"
-RESPONSE="$(aws ec2 describe-images --filters Name="tag:monorepo_content_sha,Values=${MONOREPO_CONTENT_SHA}" Name="tag:circle_job_name,Values=${JOB_NAME}" --query Images[*] --region "${REGION}")"
-IMAGE=$(echo "${RESPONSE}" | jq --raw-output '.[].ImageId' | sort -r | head -n 1)
+PROVIDER="${1}"
+MONOREPO_CONTENT_SHA="${2}"
+JOB_NAME="${3}"
+REGION="${4:-}"
+
+if [[ $REGION == "" ]]; then
+  if [[ $PROVIDER == "googlecompute" ]]; then
+    REGION="$(echo "${GCE_DEFAULT_ZONE}" | awk -F'-' '{ print $1 }')"
+  elif [[ $PROVIDER == "amazon-ebs" ]]; then
+    REGION="$AWS_DEFAULT_REGION"
+  fi
+fi
+
+case "${PROVIDER}" in
+googlecompute)
+  CLEAN_JOB_NAME=$(echo "${JOB_NAME}" | sed "s/[^a-zA-Z0-9-]/-/g")
+  # despite the fact that image region is now extremely important for
+  # determining costs, GCE has no way to filter images by their storage
+  # location, which is totally fine. Another hilarious thing is that if you use
+  # `gcloud beta compute images list` you get an empty list back, while `gcloud
+  # compute images list` is definitely not empty. This removes the option of
+  # listing possibly-relevant images and then filtering down by region.
+  #
+  # So instead we label every image we make with the region it's in.
+  #
+  # Once again: this is completely fine.
+  filters="labels.monorepo_content_sha=${MONOREPO_CONTENT_SHA} AND labels.circle_job_name=${CLEAN_JOB_NAME} AND labels.region~^${REGION}$"
+  RESPONSE="$(./google-cloud-sdk/bin/gcloud compute images list --filter="${filters}" --format=json)"
+  IMAGE=$(echo "${RESPONSE}" | jq --raw-output '.[].name' | sort -r | head -n 1)
+  ;;
+amazon-ebs)
+  RESPONSE="$(aws ec2 describe-images --filters Name="tag:monorepo_content_sha,Values=${MONOREPO_CONTENT_SHA}" Name="tag:circle_job_name,Values=${JOB_NAME}" --query Images[*] --region "${REGION}")"
+  IMAGE=$(echo "${RESPONSE}" | jq --raw-output '.[].ImageId' | sort -r | head -n 1)
+  ;;
+*)
+  echo "unknown provider ${PROVIDER}" >/dev/stderr
+  exit 1
+  ;;
+esac
+
 echo "Found $(echo "${RESPONSE}" | jq length) images for ${JOB_NAME} with SHA ${MONOREPO_CONTENT_SHA} in ${REGION}" >/dev/stderr
 echo "${IMAGE}"
 echo "${RESPONSE}" | jq -e '. | length > 0' >/dev/null
