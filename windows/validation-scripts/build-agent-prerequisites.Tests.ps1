@@ -11,6 +11,9 @@
     It "Has gzip on the path" {
         (Get-Command -Name 'gzip') | Should -HaveCount 1
     }
+    It "Has PsExec on the path" {
+        (Get-Command -Name 'PsExec64.exe') | Should -HaveCount 1
+    }
 }
 
 $SoftwareName = "7zip"
@@ -37,6 +40,15 @@ $gzipversion = $(gzip --version).Split([System.Environment]::NewLine)[0]
 
 $Description = @"
 _Version:_ $gzipversion<br/>
+"@
+
+Add-SoftwareDetailsToMarkdown -SoftwareName $SoftwareName -DescriptionMarkdown $Description
+
+$SoftwareName = "PsExec64"
+$psexecversion = $(PsExec64.exe --version).Split([System.Environment]::NewLine)[1].Split("-")[0]
+
+$Description = @"
+_Version:_ $psexecversion<br/>
 "@
 
 Add-SoftwareDetailsToMarkdown -SoftwareName $SoftwareName -DescriptionMarkdown $Description
