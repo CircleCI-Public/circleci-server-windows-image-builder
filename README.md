@@ -60,7 +60,7 @@ You can use either AWS or GCP to build your Windows machine image. Choose one yo
 
 ### Common troubleshooting
 
-* If you get any errors around not being able to find a default VPC, you will need to specify `vpc_id` and `subnet_id` in `windows/visual-studio/packer.yaml`.
+* If you get any errors around not being able to find a default VPC, you will need to specify `vpc_id`, `subnet_id` (both for AWS) or `subnetwork` (for GCP) in `windows/visual-studio/packer.yaml`.
 
 ## What the packer job in this build does
 * Sets up winrm.
