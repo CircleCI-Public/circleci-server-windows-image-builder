@@ -158,7 +158,7 @@ jobs:
       - run:
           name: Create GC script, then run it
           command: |
-            cat \<<"EOF" > /usr/local/bin/run-gc
+            cat <<"EOF" > /usr/local/bin/run-gc
             #!/bin/bash
             #
             # Stops any RUNNING packer VMs that are older than 48 hours. You can
