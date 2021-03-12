@@ -5,8 +5,8 @@
   It "4 versions of the sdk are installed" {
     $(dotnet --list-sdks).Split([System.Environment]::NewLine).Count | Should -EQ 4
   }
-  It "15 versions of the runtime are installed" {
-    $(dotnet --list-runtimes).Split([System.Environment]::NewLine).Count | Should -EQ 15
+  It "18 versions of the runtime are installed" {
+    $(dotnet --list-runtimes).Split([System.Environment]::NewLine).Count | Should -EQ 18
   }
 }
 
