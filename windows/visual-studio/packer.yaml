@@ -126,7 +126,7 @@ provisioners:
       - "windows/provision-scripts/dscConfig.ps1"
       # Uncomment below to change the system locale to Japan (CP932)
       # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
-      # - "windows/provision-scripts/localize.ps1"
+      - "windows/provision-scripts/localize.ps1"
 
   - type: file
     source: "windows/proprietary/PsExec64.exe"
