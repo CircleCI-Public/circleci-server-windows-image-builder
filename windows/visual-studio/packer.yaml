@@ -128,11 +128,6 @@ provisioners:
       # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
       # - "windows/provision-scripts/localize.ps1"
 
-  - type: file
-    source: "windows/proprietary/PsExec64.exe"
-    destination: "C:\\Windows\\System32\\"
-    direction: "upload"
-
   - type: windows-restart
 
   - type: powershell
