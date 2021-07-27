@@ -113,6 +113,7 @@ provisioners:
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
+      - "windows/provision-scripts/update-pwsh.ps1"
       - "windows/provision-scripts/install-windows-updates.ps1"
       - "windows/provision-scripts/cleanup-useless-defaults.ps1"
       - "windows/provision-scripts/dscConfig.ps1"
