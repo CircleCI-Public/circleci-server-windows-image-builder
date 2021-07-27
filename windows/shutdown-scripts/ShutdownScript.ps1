@@ -2,7 +2,7 @@
 # this check makes sure we only turn off winRM at the end
 if (Test-Path -Path "C:\Windows\Temp\PackerCleanup") {
   Disable-PSRemoting -Force
-  Stop-Service WinRM
+  Stop-Service WinRM -Force -NoWait
   Set-Service WinRM -StartupType Disabled
   Disable-NetFirewallRule -Direction Inbound
   New-NetFirewallRule -DisplayName "Allow GCE Metadata" -Direction Inbound -LocalPort Any -RemotePort Any -Protocol Any -RemoteAddress '169.254.169.254' -LocalAddress Any
