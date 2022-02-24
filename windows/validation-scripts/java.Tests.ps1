@@ -6,7 +6,7 @@ Describe "Java" {
 }
 
 $SoftwareName = "java"
-$(java --version).Split([System.Environment]::NewLine)[0] -match "\d+\.\d+\.\d+"
+([string]$(java -version 2>&1)).Split([System.Environment]::NewLine)[0] -match "\d+\.\d+\.\d+"
 $javaVersion = $matches[0]
 
 $Description = @"
