@@ -57,7 +57,7 @@ LogLevel DEBUG3
 
 # Enable SFTP subsystem
 # CircleCI runs `scp` to install a task runner, and newer `scp` implementation needs SFTP subsystem to be available
-Subsystem sftp sftp-server.exe
+Subsystem sftp /usr/lib/ssh/sftp-server
 "@
 
 Set-Content "$env:PROGRAMDATA\ssh\sshd_config" $sshdConfig
