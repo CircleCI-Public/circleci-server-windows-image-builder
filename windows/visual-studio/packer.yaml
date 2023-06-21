@@ -14,7 +14,7 @@ variables:
   circle_workflow_id: '{{ env "CIRCLE_WORKFLOW_ID" }}'
   gce_region: '{{ split (user "gce_zone") "-" 0 }}'
 
-  # Uncomment below to set the Docker registry mirror
+  # Uncomment below to enable Docker registry mirror
   # IMPORTANT: Replace https://mirror.gcr.io with your custom registry
   # dockerhub_registry_mirror: 'https://mirror.gcr.io'
 
