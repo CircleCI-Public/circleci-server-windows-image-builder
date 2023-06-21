@@ -36,14 +36,15 @@ if ($daemonConfig.'registry-mirrors' -eq $null) {
     $daemonConfig.'registry-mirrors' += $registryMirror
 }
 
-# Add or update insecure registry settings
-if ($daemonConfig.'insecure-registries' -eq $null) {
-    Write-Host "insecure-registries array missing. Creating record.."
-    $daemonConfig | add-member -type NoteProperty -Name 'insecure-registries' -Value @($registryMirror)
-} else {
-    Write-Host "insecure-registries array found. Appending record.."
-    $daemonConfig.'insecure-registries' += $registryMirror
-}
+# NOT RECOMMENDED: Add or update insecure registry settings
+# Uncomment code block below if your Docker registry mirror is not using HTTPS (insecure)
+# if ($daemonConfig.'insecure-registries' -eq $null) {
+#     Write-Host "insecure-registries array missing. Creating record.."
+#     $daemonConfig | add-member -type NoteProperty -Name 'insecure-registries' -Value @($registryMirror)
+# } else {
+#     Write-Host "insecure-registries array found. Appending record.."
+#     $daemonConfig.'insecure-registries' += $registryMirror
+# }
 
 # Save the modified configuration file
 $daemonConfig | ConvertTo-Json | Set-Content -Path $daemonConfigPath
