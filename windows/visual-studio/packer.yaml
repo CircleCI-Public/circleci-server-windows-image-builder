@@ -148,10 +148,10 @@ provisioners:
       - "windows/provision-scripts/update-pester.ps1"
       - "windows/provision-scripts/enable-ec2launch.ps1"
       - "windows/provision-scripts/enable-cleanup.ps1"
-      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
       # Uncomment below to enable Docker registry mirror
       # NOTE: this script requires the DOCKERHUB_REGISTRY_MIRROR environment variable
       # - "windows/provision-scripts/configure-docker-daemon.ps1"
+      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
       - "windows/validation-scripts/run-pester.ps1"
 
   - type: file
