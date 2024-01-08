@@ -14,6 +14,10 @@ variables:
   circle_workflow_id: '{{ env "CIRCLE_WORKFLOW_ID" }}'
   gce_region: '{{ split (user "gce_zone") "-" 0 }}'
 
+  # Uncomment below to enable Docker registry mirror
+  # IMPORTANT: Replace https://mirror.gcr.io with your custom registry
+  # dockerhub_registry_mirror: 'https://mirror.gcr.io'
+
 builders:
   - type: amazon-ebs
     access_key: ""
@@ -134,11 +138,19 @@ provisioners:
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
+    # Uncomment below to enable Docker registry mirror value to be passed as an environment variable
+    # NOTE: Packer will quote strings by default
+    # See https://developer.hashicorp.com/packer/docs/provisioners/shell#env_var_format
+    # environment_vars:
+    #   - DOCKERHUB_REGISTRY_MIRROR={{ user "dockerhub_registry_mirror" }}
     scripts:
       - "windows/provision-scripts/install-ssh.ps1"
       - "windows/provision-scripts/update-pester.ps1"
       - "windows/provision-scripts/enable-ec2launch.ps1"
       - "windows/provision-scripts/enable-cleanup.ps1"
+      # Uncomment below to enable Docker registry mirror
+      # NOTE: this script requires the DOCKERHUB_REGISTRY_MIRROR environment variable
+      # - "windows/provision-scripts/configure-docker-daemon.ps1"
       - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
       - "windows/validation-scripts/run-pester.ps1"
 

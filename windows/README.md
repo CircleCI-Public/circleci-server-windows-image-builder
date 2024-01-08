@@ -7,3 +7,15 @@ The “default”,  “nvidia”, and “visual-studio” folders are various fl
 The “provision-scripts” folder contains a number of powershell scripts broken into software components.
 
 The "CircleCIDSCResources" repo contains automation objects that tell windows how it should configure it's self for us. These are being migrated to https://github.com/CircleCI-Public/CircleCIDSC
+
+
+## Custom Docker registry mirror
+
+You may want to set up [a custom Docker registry mirror](https://docs.docker.com/registry/recipes/mirror/) within this Windows AMI.
+
+To do so, you can simply:
+
+1. Uncomment the specific code sections in packer.yaml file.
+   * Look up the `# Uncomment below to enable Docker registry mirror` text.
+2. Replace https://mirror.gcr.io with your custom registry's URL.
+3. Ensure that this custom registry URL will will accessible for the Windows VM instances.
