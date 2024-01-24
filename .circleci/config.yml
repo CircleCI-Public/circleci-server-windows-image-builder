@@ -85,6 +85,7 @@ library:
               --var project_id="${CLOUDSDK_CORE_PROJECT}" \
               --var account_file=/tmp/gce-credentials.json \
               --var gce_zone="${GCE_DEFAULT_ZONE}" \
+              --var gce_subnetwork="${GCE_SUBNETWORK:-default}" \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
               --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
               --var ami_region="${AWS_DEFAULT_REGION}" \

@@ -42,14 +42,14 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
     2. Make sure that you have **a JSON-formatted key for a GCP service account** that has sufficient permission to create GCE images using Packer. Refer to [documentation of Packer](https://www.packer.io/docs/builders/googlecompute#running-outside-of-google-cloud) for details.
 
-    3. Make sure that the `default` network for your working project (which is specified in `CLOUDSDK_CORE_PROJECT` as described below) has **a firewall rule that allows ingress connections to TCP port 5986 of machines with a `packer-winrm` tag**.
+    3. Make sure that the subnetwork specified by `GCE_SUBNETWORK` (or `default` by default) for your working project (which is specified in `CLOUDSDK_CORE_PROJECT` as described below) has **a firewall rule that allows ingress connections to TCP port 5986 of machines with a `packer-winrm` tag**.
 
 2. First, **configure `circleci-server-image-builder` context that contains credentials for GCE as env vars**. In the context, populate the env vars below:
 
     * `GCE_SERVICE_CREDENTIALS_BASE64` (Base64-encoded service account key; the result of `base64 -w 0 your-key-file.json`)
     * `CLOUDSDK_CORE_PROJECT` (Name of the project for which the image builder runs and the resulting image is saved)
     * `GCE_DEFAULT_ZONE` (Zone where the image builder runs, e.g., `us-central1-a`, `asia-northeast1-a`.)
-
+    * `GCE_SUBNETWORK` (the Google Compute subnetwork ID or URL to use for the launched instance. Defaults to `default`)
     [Our official document](https://circleci.com/docs/2.0/contexts/) would help you setting up contexts.
 
 3. **Create a new project on your CircleCI server to connect your own repo** by clicking Set Up Project in the Add Projects page.
