@@ -53,12 +53,12 @@ library:
           command: mkdir -p /tmp/results /tmp/artifacts
       - run:
           name: Build images
-          no_output_timeout: 180m
+          no_output_timeout: 300m
           environment:
             # The AMI can take a very long time to be ready. These env
             # vars make packer wait 3 hours for this to happen before
             # giving up.
-            AWS_MAX_ATTEMPTS: 180
+            AWS_MAX_ATTEMPTS: 300
             AWS_POLL_DELAY_SECONDS: 60
           command: |
             MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
