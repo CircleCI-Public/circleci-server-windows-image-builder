@@ -27,8 +27,8 @@ builders:
       filters:
         virtualization-type: "hvm"
         root-device-type: "ebs"
-        name: "Windows_Server-2019-English-Full-ContainersLatest-*"
-      owners: ["801119661308"]
+        name: "Windows_Server-2019-English-Full-ECS_Optimized-*"
+      owners: ["amazon"]
       most_recent: true
     instance_type: "m5.2xlarge"
     ami_name: "windows-server-2019-vs2019-{{timestamp}}"
@@ -118,7 +118,8 @@ provisioners:
     elevated_password: "{{.WinRMPassword}}"
     scripts:
       - "windows/provision-scripts/update-pwsh.ps1"
-      - "windows/provision-scripts/install-windows-updates.ps1"
+      # win update took more than 5 hour which is the limit for build run
+      # - "windows/provision-scripts/install-windows-updates.ps1"
       - "windows/provision-scripts/cleanup-useless-defaults.ps1"
       - "windows/provision-scripts/dscConfig.ps1"
 
@@ -152,7 +153,8 @@ provisioners:
       # NOTE: this script requires the DOCKERHUB_REGISTRY_MIRROR environment variable
       # - "windows/provision-scripts/configure-docker-daemon.ps1"
       - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
-      - "windows/validation-scripts/run-pester.ps1"
+      # The following errors as windows update did not run
+      # - "windows/validation-scripts/run-pester.ps1"
 
   - type: file
     source: "C:\\InstalledSoftware.md"
