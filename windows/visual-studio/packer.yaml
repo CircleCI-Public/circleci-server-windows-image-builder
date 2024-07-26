@@ -70,7 +70,7 @@ builders:
     project_id: '{{ user "project_id" }}'
     account_file: '{{ user "account_file" }}'
     zone: '{{ user "gce_zone" }}'
-    subnetwork: default
+    subnetwork: '{{ user "gce_subnetwork" }}'
     tags:
       - packer-winrm
 
