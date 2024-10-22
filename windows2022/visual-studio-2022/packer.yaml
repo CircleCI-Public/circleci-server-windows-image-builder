@@ -1,0 +1,178 @@
+variables:
+  # Used to force a rebuild
+  changeable_thing: "2024-04-16"
+
+  # GCE account related
+  project_id: notnoopci-prototype
+  account_file: ""
+
+  # metadata for tagging
+  circle_build_url: '{{ env "CIRCLE_BUILD_URL"}}'
+  circle_job_name: '{{ env "CIRCLE_JOB" }}'
+  helper_script_folder: "C:\\Program Files\\WindowsPowerShell\\Modules\\"
+  test_script_folder: "C:\\tests"
+  shutdown_script_folder: "C:\\shutdown-scripts"
+  circle_sha: '{{ env "CIRCLE_SHA1" }}'
+
+builders:
+  - type: amazon-ebs
+    access_key: ""
+    secret_key: ""
+    region: '{{ user "ami_region" }}'
+    skip_profile_validation: true
+    source_ami_filter:
+      filters:
+        virtualization-type: "hvm"
+        root-device-type: "ebs"
+        name: "Windows_Server-2022-English-Full-Base-*"
+      owners: ["amazon"]
+      most_recent: true
+    instance_type: "m5.2xlarge"
+    ami_name: "windows-server-2022-vs2022-{{timestamp}}"
+    user_data_file: ./windows2022/visual-studio-2022/user_data.ps1
+    communicator: "winrm"
+    force_deregister: true
+    launch_block_device_mappings:
+      - device_name: "/dev/sda1"
+        volume_size: 200
+        volume_type: "gp2"
+        delete_on_termination: true
+    winrm_username: '{{ user "windows_user" }}'
+    winrm_insecure: true
+    winrm_use_ssl: true
+    winrm_timeout: "30m"
+    tags:
+      circle_build_url: '{{ user "circle_build_url" }}'
+      circle_job_name: '{{ user "circle_job_name" }}'
+      circle_sha: '{{ user "circle_sha" }}'
+      monorepo_content_sha: '{{ user "monorepo_content_sha" }}'
+      team: "execution"
+    run_tags:
+      circle_build_url: '{{ user "circle_build_url" }}'
+      team: "execution"
+    run_volume_tags:
+      circle_build_url: '{{ user "circle_build_url" }}'
+      team: "execution"
+
+  - type: googlecompute
+    network: packer
+    image_name: windows-server-2022-vs2022-{{timestamp}}
+    image_family: windows-server2022-canary
+    source_image_family: windows-2022
+    # This used to be 80GB but visual studio consumed an addtional 30GB. So This
+    # Was Doubled
+    disk_size: 200
+    # This is pd-ssd so that virus scan happens at a reasonable speed.
+    disk_type: pd-ssd
+
+    # Virus scan is much faster on a machine with a larger modern processer.
+    machine_type: "n2-standard-8"
+
+    project_id: '{{ user "project_id" }}'
+    account_file: '{{ user "account_file" }}'
+    zone: us-central1-a
+
+    state_timeout: "30m"
+
+    preemptible: false
+
+    communicator: "winrm"
+    winrm_username: '{{ user "windows_user" }}'
+    winrm_insecure: true
+    winrm_use_ssl: true
+    winrm_timeout: "30m"
+
+    metadata:
+      windows-startup-script-cmd: |
+        winrm set winrm/config/service/auth @{Basic=\"true\"}
+
+      windows-shutdown-script-ps1: |
+        & {{user `shutdown_script_folder`}}\GCEShutdownScript.ps1
+        & {{user `shutdown_script_folder`}}\ShutdownScript.ps1
+
+    image_labels:
+      region: us
+      # circle_build_url: '{{ user "circle_build_url" | clean_resource_name }}'
+      circle_job_name: '{{ user "circle_job_name" | clean_resource_name }}'
+      circle_sha: '{{ user "circle_sha" | clean_resource_name }}'
+      monorepo_content_sha: '{{ user "monorepo_content_sha" | clean_resource_name }}'
+      
+provisioners:
+  - type: file
+    source: "windows2022/ImageHelpers"
+    destination: "{{user `helper_script_folder`}}"
+
+  - type: file
+    source: "windows2022/validation-scripts"
+    destination: "{{user `test_script_folder`}}"
+
+  - type: file
+    source: "windows2022/shutdown-scripts"
+    destination: "C:\\"
+
+  - type: file
+    source: "windows2022/provision-scripts/ce.ps1"
+    destination: "C:\\tmp\\provision-scripts\\ce\\ce.ps1"
+
+  # - type: powershell
+  #   elevated_user: '{{ user "windows_user" }}'
+  #   elevated_password: "{{.WinRMPassword}}"
+  #   script: "windows2022/provision-scripts/ConfigureRemotingForAnsible.ps1"
+
+  - type: ansible
+    playbook_file: "ansible/windows-playbook.yml"
+    user: ansible
+    keep_inventory_file: true
+    extra_arguments: ["-vv", "--connection", "packer", "--extra-vars", "ansible_user={{user `windows_user`}}", "--extra-vars", "ansible_password={{.WinRMPassword}}", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows2022/software.yml", "--tags", "create_users"]
+    use_proxy: false
+
+# TODO: Change the ansible_password !
+  - type: ansible
+    playbook_file: "ansible/windows-playbook.yml"
+    user: ansible
+    keep_inventory_file: true
+    extra_arguments: ["-vvvv", "--connection", "packer", "--extra-vars", "ansible_user=circleci", "--extra-vars", "ansible_password=gFo8.UbL-@Ln*q-m", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows2022/software.yml", "--tags", "build"]
+    use_proxy: false
+
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows2022/provision-scripts/install-ssh-2022.ps1"
+      - "windows2022/provision-scripts/ssh-rsa-for-bitbucket.ps1"
+      - "windows2022/provision-scripts/enable-cleanup.ps1"
+      - "windows2022/provision-scripts/disable-windows-defender-scanner.ps1"
+      - "windows2022/provision-scripts/ce-task.ps1"
+      - "windows2022/provision-scripts/fixpath.ps1"
+
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    inline: |
+      & 'C:/Program Files/Amazon/EC2Launch/ec2launch' sysprep
+
+  # Explicitly configure nuget.org feed source
+  # to resolve https://circleci.atlassian.net/browse/CPE-83.
+  # This fix should be removed once it is no longer needed.
+  # In the meantime, the feed URL will need to be updated if NuGet moves to a newer API version:
+  # https://docs.microsoft.com/en-us/nuget/reference/cli-reference/cli-ref-sources
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    scripts:
+      - "windows2022/provision-scripts/temp-fix-nuget-restore-issue.ps1"
+
+  # - type: file
+  #   source: "C:\\InstalledSoftware.md"
+  #   destination: "/tmp/artifacts/Vs2022-Server2022-Readme.md"
+  #   direction: "download"
+
+  # - type: file
+  #  source: "C:\\test-results.xml"
+  #  destination: "{{ user `test_results_path` }}"
+  #  direction: "download"
+
+  # - type: file
+  #   source: "C:\\ProgramData\\chocolatey\\logs\\chocolatey.log"
+  #   destination: "/tmp/artifacts/chocolatey.log"
+  #   direction: "download"

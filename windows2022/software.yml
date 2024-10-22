@@ -1,0 +1,60 @@
+# renovate: datasource=repology depName=chocolatey/git
+git_version: 2.46.2
+# renovate: datasource=repology depName=chocolatey/git-lfs
+gitlfs_version: 3.5.1
+# renovate: datasource=repology depName=chocolatey/7zip.portable
+sevenzip_version: 24.8.0
+# renovate: datasource=repology depName=chocolatey/gzip
+gzip_version: 1.3.12
+# renovate: datasource=repology depName=chocolatey/sysinternals
+sysinternals_version: 2024.7.23
+# renovate: datasource=repology depName=chocolatey/awscli
+awscli_version: 2.17.64
+# renovate: datasource=repology depName=chocolatey/azure-cli
+azurecli_version: 2.64.0
+# renovate: datasource=repology depName=chocolatey/webpi
+webpi_version: 5.1
+# renovate: datasource=repology depName=chocolatey/service-fabric-sdk
+servicefabricsdk_version: 7.1.2338
+# renovate: datasource=repology depName=chocolatey/nunit-console-runner
+nunit_console_runner_version: 3.18.2
+# renovate: datasource=repology depName=chocolatey/nano
+nano_version: 7.2.36.20230412
+# renovate: datasource=repology depName=chocolatey/vim
+vim_version: 9.1.757
+# renovate: datasource=repology depName=chocolatey/jq
+jq_version: 1.7
+# renovate: datasource=repology depName=chocolatey/golang
+golang_version: 1.23.2
+# renovate: datasource=repology depName=chocolatey/openjdk
+openjdk_version: 22.0.2
+# renovate: datasource=repology depName=chocolatey/python
+python_3_version: 3.12.6
+# renovate: datasource=repology depName=chocolatey/nodejs
+nodejs_version: 21.6.2
+# renovate: datasource=repology depName=chocolatey/ruby
+ruby_version: 3.3.0.1
+# renovate: datasource=repology depName=chocolatey/rust
+rust_version: 1.81.0
+# renovate: datasource=repology depName=chocolatey/docker-engine
+docker_version: 25.0.3.20240227
+# renovate: datasource=repology depName=chocolatey/nvm
+nvm_version: 1.1.11
+# renovate: datasource=repology depName=chocolatey/dotnet-6.0-sdk
+dotnet_sdk_version_6: 6.0.418
+# renovate: datasource=repology depName=chocolatey/dotnet-7.0-sdk
+dotnet_sdk_version_7: 7.0.405
+# renovate: datasource=repology depName=chocolatey/visualstudio2022community
+visualstudio_community_edition_version: 117.11.5
+# renovate: datasource=repology depName=chocolatey/visualstudio2022buildtools
+visualstudio_buildtools_version: 117.11.5
+# renovate: datasource=repology depName=chocolatey/NuGet.CommandLine
+nuget_cli_version: 6.11.1
+# renovate: datasource=repology depName=chocolatey/winappdriver
+winappdriver_version: 1.2.1
+# renovate: datasource=repology depName=chocolatey/syft
+syft_version: 1.13.0
+package_state: present
+image_name: windows-server-2022-gui
+image_tag: 2024.01.1
+image_group: windows-server-2022

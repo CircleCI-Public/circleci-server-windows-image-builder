@@ -22,7 +22,7 @@ REGION="${4:-}"
 
 if [[ $REGION == "" ]]; then
   if [[ $PROVIDER == "googlecompute" ]]; then
-    REGION="$(echo "${GCE_DEFAULT_ZONE}" | awk -F'-' '{ print $1 }')"
+    REGION="$(echo "${GOOGLE_COMPUTE_ZONE}" | awk -F'-' '{ print $1 }')"
   elif [[ $PROVIDER == "amazon-ebs" ]]; then
     REGION="$AWS_DEFAULT_REGION"
   fi
