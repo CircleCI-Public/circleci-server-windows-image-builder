@@ -44,11 +44,11 @@ library:
               ./google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=/tmp/gce-credentials.json
             fi
       - run:
-          name: convert windows/visual-studio/packer.yaml to windows/visual-studio/packer.json
+          name: convert windows2019/visual-studio/packer.yaml to windows2019/visual-studio/packer.json
           command: |
-            cat ./windows/visual-studio/packer.yaml \
+            cat ./windows2019/visual-studio/packer.yaml \
               | python3 -c 'import sys, yaml, json; y=yaml.safe_load(sys.stdin.read()); print(json.dumps(y))' \
-              > ./windows/visual-studio/packer.json
+              > ./windows2019/visual-studio/packer.json
       - run:
           command: mkdir -p /tmp/results /tmp/artifacts
       - run:
