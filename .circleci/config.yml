@@ -9,11 +9,9 @@ library:
       - run:
           name: Determine which platform we use
           command: |
-            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws" ] && [ ! -z "$AWS_DEFAULT_REGION" ]
-            then
+            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
               echo 'export PROVIDER="amazon-ebs"' | tee -a $BASH_ENV
-            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp" ] && [ ! -z "$GCE_DEFAULT_ZONE" ]
-            then
+            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp" ] && [ -n "$GCE_DEFAULT_ZONE" ]; then
               echo 'export PROVIDER="googlecompute"' | tee -a $BASH_ENV
             else
               echo 'No provider available. Gracefully exiting.'
@@ -27,8 +25,7 @@ library:
       - run:
           name: install and configure gcloud sdk as needed
           command: |
-            if [ ! -z "${GCE_SERVICE_CREDENTIALS_BASE64}" ]
-            then
+            if [ -n "${GCE_SERVICE_CREDENTIALS_BASE64}" ]; then
               echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
                 | base64 -d \
                 > /tmp/gce-credentials.json
@@ -91,7 +88,7 @@ library:
               --var windows_user="${WINDOWS_USER}" \
               --var test_results_path="/tmp/results/test-results.xml" \
               ${SOURCE_IMAGE_VAR} \
-              windows/visual-studio/packer.json | tee /tmp/artifacts/image-build.log
+              windows2019/visual-studio/packer.json | tee /tmp/artifacts/image-build.log
       - run:
           name: Summarize results
           command: |
@@ -128,8 +125,7 @@ jobs:
       - run:
           name: check that it should work for AWS
           command: |
-            if [ ! -z "${AWS_ACCESS_KEY_ID}" ]
-            then
+            if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
               circleci-agent step halt
             fi
       - checkout
@@ -144,8 +140,7 @@ jobs:
       - run:
           name: generate credentials or halt the job
           command: |
-            if [ ! -z "${GCE_SERVICE_CREDENTIALS_BASE64}" ]
-            then
+            if [ -n "${GCE_SERVICE_CREDENTIALS_BASE64}" ]; then
               echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
                 | base64 -d \
                 > /tmp/gce-credentials.json
