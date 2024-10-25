@@ -57,7 +57,7 @@ builders:
   - type: googlecompute
     image_name: windows-server-2019-vs2019-{{timestamp}}
     image_family: windows-server-2019-vs2019
-    source_image_family: windows-2019-for-containers
+    source_image_family: windows-2019
     # This used to be 80GB but visual studio consumed an addtional 30GB. So This
     # Was Doubled
     disk_size: 160
