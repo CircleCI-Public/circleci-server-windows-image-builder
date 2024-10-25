@@ -30,7 +30,7 @@ builders:
     instance_type: "m5.2xlarge"
     ami_name: "windows-server-2022-vs2022-{{timestamp}}"
     ami_groups: "all"
-    user_data_file: ./windows/visual-studio/user_data.ps1
+    user_data_file: ./windows2022/visual-studio/user_data.ps1
     communicator: "winrm"
     force_deregister: true
     launch_block_device_mappings:
@@ -99,31 +99,31 @@ builders:
 
 provisioners:
   - type: file
-    source: "windows/ImageHelpers"
+    source: "windows2022/ImageHelpers"
     destination: "{{user `helper_script_folder`}}"
 
   - type: file
-    source: "windows/validation-scripts"
+    source: "windows2022/validation-scripts"
     destination: "{{user `test_script_folder`}}"
 
   - type: file
-    source: "windows/shutdown-scripts"
+    source: "windows2022/shutdown-scripts"
     destination: "C:\\"
 
   - type: file
-    source: "windows/provision-scripts/ce.ps1"
+    source: "windows2022/provision-scripts/ce.ps1"
     destination: "C:\\tmp\\provision-scripts\\ce\\ce.ps1"
 
   # - type: powershell
   #   elevated_user: '{{ user "windows_user" }}'
   #   elevated_password: "{{.WinRMPassword}}"
-  #   script: "windows/provision-scripts/ConfigureRemotingForAnsible.ps1"
+  #   script: "windows2022/provision-scripts/ConfigureRemotingForAnsible.ps1"
 
   - type: ansible
     playbook_file: "ansible/windows-playbook.yml"
     user: ansible
     keep_inventory_file: true
-    extra_arguments: ["-vv", "--connection", "packer", "--extra-vars", "ansible_user={{user `windows_user`}}", "--extra-vars", "ansible_password={{.WinRMPassword}}", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows/software.yml", "--tags", "create_users"]
+    extra_arguments: ["-vv", "--connection", "packer", "--extra-vars", "ansible_user={{user `windows_user`}}", "--extra-vars", "ansible_password={{.WinRMPassword}}", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows2022/software.yml", "--tags", "create_users"]
     use_proxy: false
 
 # TODO: Change the ansible_password !
@@ -131,20 +131,20 @@ provisioners:
     playbook_file: "ansible/windows-playbook.yml"
     user: ansible
     keep_inventory_file: true
-    extra_arguments: ["-vvvv", "--connection", "packer", "--extra-vars", "ansible_user=circleci", "--extra-vars", "ansible_password=TODO-CHANGE-ME!", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows/software.yml", "--tags", "build"]
+    extra_arguments: ["-vvvv", "--connection", "packer", "--extra-vars", "ansible_user=circleci", "--extra-vars", "ansible_password=TODO-CHANGE-ME!", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows2022/software.yml", "--tags", "build"]
     use_proxy: false
 
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
-      - "windows/provision-scripts/install-ssh-2022.ps1"
-      - "windows/provision-scripts/enable-ec2launch.ps1"
-      - "windows/provision-scripts/ssh-rsa-for-bitbucket.ps1"
-      - "windows/provision-scripts/enable-cleanup.ps1"
-      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
-      - "windows/provision-scripts/ce-task.ps1"
-      - "windows/provision-scripts/fixpath.ps1"
+      - "windows2022/provision-scripts/install-ssh-2022.ps1"
+      - "windows2022/provision-scripts/enable-ec2launch.ps1"
+      - "windows2022/provision-scripts/ssh-rsa-for-bitbucket.ps1"
+      - "windows2022/provision-scripts/enable-cleanup.ps1"
+      - "windows2022/provision-scripts/disable-windows-defender-scanner.ps1"
+      - "windows2022/provision-scripts/ce-task.ps1"
+      - "windows2022/provision-scripts/fixpath.ps1"
 
   # Explicitly configure nuget.org feed source
   # to resolve https://circleci.atlassian.net/browse/CPE-83.
@@ -155,7 +155,7 @@ provisioners:
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
-      - "windows/provision-scripts/temp-fix-nuget-restore-issue.ps1"
+      - "windows2022/provision-scripts/temp-fix-nuget-restore-issue.ps1"
 
   - type: file
     source: "C:\\InstalledSoftware.md"
