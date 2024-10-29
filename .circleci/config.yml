@@ -303,7 +303,7 @@ library:
           command: |
             if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws_2019" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
               echo 'export PROVIDER="amazon-ebs"' | tee -a $BASH_ENV
-            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp_2019" ] && [ -n "$GCE_DEFAULT_ZONE" ]; then
+            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp_2019" ] && [ -n "$GOOGLE_COMPUTE_ZONE" ]; then
               echo 'export PROVIDER="googlecompute"' | tee -a $BASH_ENV
             else
               echo 'No provider available. Gracefully exiting.'
@@ -373,7 +373,7 @@ library:
               --only "${PROVIDER}" \
               --var project_id="${CLOUDSDK_CORE_PROJECT}" \
               --var account_file=/tmp/gce-credentials.json \
-              --var gce_zone="${GCE_DEFAULT_ZONE}" \
+              --var gce_zone="${GOOGLE_COMPUTE_ZONE}" \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
               --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
               --var ami_region="${AWS_DEFAULT_REGION}" \
@@ -1030,7 +1030,7 @@ workflows:
   build_all_images_2019:
     jobs:
       - windows_visualstudio_gcp_2019:
-          context: circleci-server-image-builder
+          context: cpe-gcp
       - windows_visualstudio_aws_2019:
           context: CPE_ORBS_AWS
   build_gcp_2022:
@@ -1042,7 +1042,7 @@ workflows:
           build_if_changed: "windows2022"
           source_dirs: "windows2022"
           packer_provider: "googlecompute"
-          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
       - wait_for_image_family_update:
           name: wait_for_windows_2022_vs_gcp_canary_update
           executor: windows-2022-canary
@@ -1050,27 +1050,27 @@ workflows:
           workspace_path: c:\\Windows\\temp\\workspace
           build_log_dir: /c/windows/temp/workspace
           credentials_output_dir: /c/windows/temp
-          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
           requires:
             - windows_2022_visualstudio_gcp
       - test_windows_canary_unit:
           executor: windows-2022-canary
-          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
           requires:
             - wait_for_windows_2022_vs_gcp_canary_update
       - validate_windows_canary:
           executor: windows-2022-canary
-          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
           requires:
             - test_windows_canary_unit
       - test_windows_dotnetcore_canary:
           executor: windows-2022-canary
-          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
           requires:
             - wait_for_windows_2022_vs_gcp_canary_update
       - test_windows_dotnetcore_sampleproject_canary:
           executor: windows-2022-canary
-          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
           requires:
             - test_windows_dotnetcore_canary
 
@@ -1118,7 +1118,7 @@ workflows:
   daily:
     jobs:
       - gc_old_gce_instances:
-          context: circleci-server-image-builder
+          context: cpe-gcp
       - gc_old_ec2_instances:
           context: CPE_ORBS_AWS
     triggers:
