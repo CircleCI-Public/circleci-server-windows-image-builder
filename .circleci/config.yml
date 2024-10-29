@@ -740,8 +740,12 @@ jobs:
           command: packer --version
       - attach_workspace:
           at: /tmp/workspace
-      - gcloud_sdk:
-          key_file: "/tmp/gce-credentials.json"
+      - when:
+          condition:
+            equal: ["googlecompute", <<parameters.packer_provider>>]
+          steps:
+            - gcloud_sdk:
+                key_file: "/tmp/gce-credentials.json"
       - ensure_path:
           path: "/tmp/artifacts/"
       - yaml_to_json_ansible:
