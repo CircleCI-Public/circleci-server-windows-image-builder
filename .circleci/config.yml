@@ -9,6 +9,7 @@ executors:
   deploy:
     docker:
       - image: cimg/deploy:2024.03
+    shell: bash -eox pipefail
 
 orbs:
   slack: circleci/slack@5.0.0
@@ -300,9 +301,9 @@ library:
       - run:
           name: Determine which platform we use
           command: |
-            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
+            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws_2019" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
               echo 'export PROVIDER="amazon-ebs"' | tee -a $BASH_ENV
-            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp" ] && [ -n "$GCE_DEFAULT_ZONE" ]; then
+            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp_2019" ] && [ -n "$GCE_DEFAULT_ZONE" ]; then
               echo 'export PROVIDER="googlecompute"' | tee -a $BASH_ENV
             else
               echo 'No provider available. Gracefully exiting.'
