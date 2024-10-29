@@ -369,7 +369,7 @@ library:
               } || packer build \
               -machine-readable \
               --only "${PROVIDER}" \
-              --var project_id="${CLOUDSDK_CORE_PROJECT}" \
+              --var project_id="${GOOGLE_PROJECT_ID}" \
               --var account_file=/tmp/gce-credentials.json \
               --var gce_zone="${GOOGLE_COMPUTE_ZONE}" \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
@@ -583,7 +583,7 @@ jobs:
             DAYS_AGO=$(date -u -Iseconds --date="$MAX_AGE_HOURS hours ago")
             gcloud compute instances list \
               --filter="status=(RUNNING,TERMINATED) AND name~packer-.+ AND creationTimestamp < ${DAYS_AGO}" \
-              --project=${CLOUDSDK_CORE_PROJECT} \
+              --project=${GOOGLE_PROJECT_ID} \
               --format='csv[no-heading,separator=" "](name,zone)' > /tmp/instances.csv
             while read name zone; do
               gcloud compute instances delete \
@@ -785,7 +785,7 @@ jobs:
               } || packer build \
               -machine-readable \
               --only << parameters.packer_provider >> \
-              --var project_id=${GCE_SERVICE_PROJECT} \
+              --var project_id=${GOOGLE_PROJECT_ID} \
               --var account_file=/tmp/gce-credentials.json \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
               --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
@@ -830,7 +830,6 @@ jobs:
       - run:
           name: Copy image to regions
           command: |
-            export CLOUDSDK_CORE_PROJECT=${GCE_SERVICE_PROJECT}
             if [[ $CIRCLE_BRANCH == main ]]; then
               if [[ << parameters.packer_provider >> == "amazon-ebs" ]]; then
                 ./scripts/copy-ami-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB} us-east-1

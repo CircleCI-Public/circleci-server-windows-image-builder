@@ -46,9 +46,9 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
 2. First, **configure `circleci-server-image-builder` context that contains credentials for GCE as env vars**. In the context, populate the env vars below:
 
-    * `GCE_SERVICE_CREDENTIALS_BASE64` (Base64-encoded service account key; the result of `base64 -w 0 your-key-file.json`)
-    * `CLOUDSDK_CORE_PROJECT` (Name of the project for which the image builder runs and the resulting image is saved)
-    * `GCE_DEFAULT_ZONE` (Zone where the image builder runs, e.g., `us-central1-a`, `asia-northeast1-a`.)
+    * `GCLOUD_SERVICE_KEY` (Base64-encoded service account key; the result of `base64 -w 0 your-key-file.json`)
+    * `GOOGLE_PROJECT_ID` (Name of the project for which the image builder runs and the resulting image is saved)
+    * `GOOGLE_COMPUTE_ZONE` (Zone where the image builder runs, e.g., `us-central1-a`, `asia-northeast1-a`.)
 
     [Our official document](https://circleci.com/docs/2.0/contexts/) would help you setting up contexts.
 
