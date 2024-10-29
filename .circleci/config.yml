@@ -1,5 +1,5 @@
 # We will continue using config version 2 for backward compatibility with server 2.x
-version: 2
+version: 2.1
 
 executors:
   windows-2022-canary:
@@ -11,9 +11,7 @@ executors:
       - image: cimg/deploy:2024.03
 
 orbs:
-  docker: circleci/docker@2.8.0
   slack: circleci/slack@5.0.0
-  aws-cli: circleci/aws-cli@5.1.1
   
   image-test:
     orbs:
@@ -869,6 +867,7 @@ jobs:
 
       - store_artifacts:
           path: /tmp/artifacts
+  
   wait_for_image_family_update:
     parameters:
       executor:
@@ -916,25 +915,7 @@ jobs:
             # Sleep for amount of time
             sleep <<parameters.wait_time>>
           shell: bash
-  test_windows_canary:
-    parameters:
-      packer_provider:
-        type: string
-        default: "googlecompute"
-      executor:
-        type: executor
-    executor: <<parameters.executor>>
-    shell: powershell.exe
-    steps:
-      - checkout
-      - halt_job_if_no_image_built:
-          packer_provider: <<parameters.packer_provider>>
-          workspace_path: c:\\Windows\\temp\\workspace
-          build_log_dir: /c/windows/temp/workspace
-      - windows-test/test-ssh
-      - windows-test/test-vs-build
-      - windows-test/test-vs-ui-build
-      - windows-test/test-browsers
+ 
   validate_windows_canary:
     parameters:
       packer_provider:
@@ -1045,8 +1026,6 @@ jobs:
       - windows-test/test-vs-dotnetcore-sample-project
 
 workflows:
-  version: 2
-
   build_all_images_2019:
     jobs:
       - windows_visualstudio_gcp_2019:
