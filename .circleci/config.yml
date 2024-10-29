@@ -409,7 +409,6 @@ library:
 
       - store_artifacts:
           path: /tmp/artifacts
-  build_image_2022: &build_image_2022:
 
 commands:
   check_source_paths:
