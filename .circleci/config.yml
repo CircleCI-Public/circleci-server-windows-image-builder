@@ -534,6 +534,11 @@ commands:
           shell: bash
 
 jobs:
+  dummy:
+    docker:
+      - image: cimg/base:current
+    steps:
+    - run: env
   gc_old_ec2_instances:
     docker:
       - image: circleci/python:3.7
@@ -1027,6 +1032,10 @@ jobs:
       - windows-test/test-vs-dotnetcore-sample-project
 
 workflows:
+  dummy-wf:
+    jobs:
+    - dummy:
+        context: [cpe-gcp, CPE_ORBS_AWS, circleci-server-image-builder]
   build_all_images_2019:
     jobs:
       - windows_visualstudio_gcp_2019:
