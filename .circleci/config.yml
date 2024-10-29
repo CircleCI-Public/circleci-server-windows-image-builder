@@ -317,10 +317,8 @@ library:
       - run:
           name: install and configure gcloud sdk as needed
           command: |
-            if [ -n "${GCE_SERVICE_CREDENTIALS_BASE64}" ]; then
-              echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
-                | base64 -d \
-                > /tmp/gce-credentials.json
+            if [ -n "${GCLOUD_SERVICE_KEY}" ]; then
+              echo "${GCLOUD_SERVICE_KEY}" > /tmp/gce-credentials.json
 
               VERSION=267.0.0-linux-x86_64
               curl --silent --show-error --location --output /tmp/google-cloud-sdk-${VERSION}.tar.gz \
@@ -442,7 +440,7 @@ commands:
     parameters:
       base64_gce_credentials:
         type: env_var_name
-        default: GCE_SERVICE_CREDENTIALS_BASE64
+        default: GCLOUD_SERVICE_KEY
       output_dir:
         type: string
         default: /tmp
@@ -450,9 +448,7 @@ commands:
       - run:
           name: generate credentials
           command: |
-            echo "${<< parameters.base64_gce_credentials >>}" \
-              | base64 -d \
-              > <<parameters.output_dir>>/gce-credentials.json
+            echo "${<< parameters.base64_gce_credentials >>}" > <<parameters.output_dir>>/gce-credentials.json
           shell: bash
 
   gcloud_sdk:
@@ -561,10 +557,8 @@ jobs:
       - run:
           name: generate credentials or halt the job
           command: |
-            if [ -n "${GCE_SERVICE_CREDENTIALS_BASE64}" ]; then
-              echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
-                | base64 -d \
-                > /tmp/gce-credentials.json
+            if [ -n "${GCLOUD_SERVICE_KEY}" ]; then
+              echo "${GCLOUD_SERVICE_KEY}" > /tmp/gce-credentials.json
             else
               circleci-agent step halt
             fi
