@@ -1,8 +1,301 @@
 # We will continue using config version 2 for backward compatibility with server 2.x
 version: 2
 
+executors:
+  windows-2022-canary:
+    machine:
+      image: windows-server-2022-gui:canary
+      resource_class: windows.medium
+  deploy:
+    docker:
+      - image: cimg/deploy:2024.03
+
+orbs:
+  docker: circleci/docker@2.8.0
+  slack: circleci/slack@5.0.0
+  aws-cli: circleci/aws-cli@5.1.1
+  
+  image-test:
+    orbs:
+      docker: circleci/docker@1.4.0
+    commands:
+      test-python3:
+        steps:
+          - run:
+              name: Test windows python
+              working_directory: ~\project
+              command: |
+                python --version | grep "Python $(yq e '.python_3_version' "$MANIFEST_PATH")"
+      test-java:
+        parameters:
+          version:
+            type: string
+          java-home-path:
+            type: string
+            default: ""
+          jre-home-path:
+            type: string
+            default: ""
+        steps:
+          - run:
+              name: Test Java
+              command: |
+                java -version 2>&1 | grep 'openjdk version "<<parameters.version>>'
+                javac -version 2>&1 | grep 'javac <<parameters.version>>'
+          - when:
+              condition: << parameters.java-home-path >>
+              steps:
+                - run:
+                    name: Test JAVA_HOME
+                    command: |
+                      set -x
+                      echo $JAVA_HOME | grep "<<parameters.java-home-path>>"
+                      echo $JDK_HOME | grep "<<parameters.java-home-path>>"
+                      ls -al $JAVA_HOME
+                      ls -al $JDK_HOME
+                      $JAVA_HOME/bin/java -version 2>&1 | grep 'openjdk version "<<parameters.version>>'
+                      $JDK_HOME/bin/javac -version 2>&1 | grep 'javac <<parameters.version>>'
+          - when:
+              condition: << parameters.jre-home-path >>
+              steps:
+                - run:
+                    name: Test JRE_HOME
+                    command: |
+                      set -x
+                      echo $JRE_HOME | grep "<<parameters.jre-home-path>>"
+                      $JRE_HOME/bin/java -version 2>&1 | grep 'openjdk version "<<parameters.version>>'
+      test-node:
+        steps:
+          - run:
+              name: Test node
+              working_directory: ~\project
+              command: |
+                node -v | grep "$(yq e '.nodejs_version' "$MANIFEST_PATH")"
+                npm install -g eslint
+                eslint --version
+      test-nvm:
+        parameters:
+          use-version:
+            type: string
+        steps:
+          - run:
+              name: Test node version switching (set)
+              command: |
+                node -v
+                nvm install << parameters.use-version >>
+                nvm use << parameters.use-version >>
+                node -v
+          - run:
+              name: Test node version switching (get)
+              command: |
+                node -v
+                node -v | grep << parameters.use-version >>
+      test-go:
+        steps:
+          - run:
+              name: Test go
+              working_directory: ~\project
+              command: |
+                go version | grep $(yq e '.golang_version' "$MANIFEST_PATH")
+      test-ruby:
+        parameters:
+          version-string:
+            type: string
+        steps:
+          - run:
+              name: Test ruby
+              command: |
+                ruby -v | grep '<<parameters.version-string>>'
+      test-docker:
+        steps:
+          - run:
+              name: Test Docker
+              working_directory: ~\project
+              command: |
+                docker version | grep "$(yq e '.docker_version' "$MANIFEST_PATH" | cut -d "-" -f1 | cud -d ":" -f2)"
+                docker run hello-world | grep 'Hello from Docker!'
+      test-rust:
+        steps:
+          - run:
+              name: Test Rust
+              working_directory: ~\project
+              command: |
+                rustc --version | grep $(yq e '.rust_version' "$MANIFEST_PATH")
+      test-azure:
+        steps:
+          - run:
+              name: Test Azure cli
+              working_directory: ~\project
+              command: |
+                az --version | grep $(yq e '.azurecli_version' "$MANIFEST_PATH")
+          - store_artifacts:
+              path: /tmp/artifacts
+      test-awscli-v2:
+        steps:
+          - run:
+              name: Remap env vars
+              command: |
+                export AWS_ACCESS_KEY_ID=$CCIDEV_AWS_ACCESS_KEY_ID
+                echo "export AWS_ACCESS_KEY_ID=\"${AWS_ACCESS_KEY_ID}\"" >>"$BASH_ENV"
+
+                export AWS_SECRET_ACCESS_KEY=$CCIDEV_AWS_SECRET_ACCESS_KEY
+                echo "export AWS_SECRET_ACCESS_KEY=\"${AWS_SECRET_ACCESS_KEY}\"" >>"$BASH_ENV"
+          - run:
+              name: Test aws cli v2
+              command: |
+                which aws
+                echo $(aws --version)
+                if ! echo "$(aws --version)" | grep -q "(aws-cli/2)"; then
+                    echo "Version 2 installed successfully."
+                else
+                    echo "Incorrect version installed"
+                    exit 1
+                fi
+          - run:
+              name: Test that paging is disabled for aws cli v2
+              command: |
+                # Test with aws command that would require paging if a pager is enabled
+                aws ec2 describe-images \
+                  --owners amazon \
+                  --filters "Name=platform,Values=windows" "Name=root-device-type,Values=ebs" \
+                  --region us-east-1
+
+  windows-test:
+    commands:
+      test-ssh:
+        steps:
+          - run:
+              name: Test that shutdown script finished execution
+              command: |
+                # This is a quick way to verify SSH functionality for now
+                if [ -z "$(ls -A /C/Windows/Temp/PackerCleanup)" ]; then
+                  ls -al /C/Windows/Temp
+                  echo "Directory does not exist"
+                else
+                  echo "Directory exists; shutdown script did not finish executing!"
+                  exit 1
+                fi
+              shell: bash.exe
+      test-vs-build:
+        steps:
+          - run:
+              name: "check directory"
+              command: Get-ChildItem
+              shell: powershell.exe
+          - run:
+              name: "check home path"
+              command: echo $HOME
+              shell: powershell.exe
+          - run:
+              name: Clone circleci-demo-windows project
+              command: |
+                git clone https://github.com/CircleCI-Public/circleci-demo-windows
+          - run:
+              name: "check directory"
+              command: Get-ChildItem
+              shell: powershell.exe
+          - run:
+              name: "Install project dependencies"
+              command: dotnet.exe restore
+              working_directory: .\circleci-demo-windows\HelloWorld
+              shell: powershell.exe
+          - run:
+              name: "Run Build step"
+              command: dotnet.exe publish -c Release -r win10-x64
+              working_directory: .\circleci-demo-windows\HelloWorld
+              shell: powershell.exe
+          - run:
+              name: "Test the executable"
+              command: .\circleci-demo-windows\HelloWorld\bin\Release\netcoreapp2.1\win10-x64\publish\circleci-demo-windows.exe
+              shell: powershell.exe
+          - store_artifacts:
+              path: .\circleci-demo-windows\HelloWorld\bin\Release\netcoreapp2.1\win10-x64\publish\circleci-demo-windows.exe
+      test-vs-dotnetcore-helloworld:
+        steps:
+          - run:
+              name: Clone circleci-demo-windows-dotnetcore project
+              command: |
+                ls -R
+                git clone https://github.com/CircleCI-Public/circleci-demo-windows-dotnetcore.git
+          - run:
+              name: "Install project dependencies"
+              command: dotnet.exe restore circleci-demo-windows.csproj
+              working_directory: .\circleci-demo-windows-dotnetcore\HelloWorld
+              shell: powershell.exe
+          - run:
+              name: "Run Build step"
+              command: dotnet.exe publish -c Release -r win10-x64
+              working_directory: .\circleci-demo-windows-dotnetcore\HelloWorld
+              shell: powershell.exe
+          - run:
+              name: "Test the executable"
+              command: .\circleci-demo-windows-dotnetcore\HelloWorld\bin\Release\netcoreapp2.1\win10-x64\publish\circleci-demo-windows.exe
+              shell: powershell.exe
+          - store_artifacts:
+              path: .\circleci-demo-windows-dotnetcore\HelloWorld\bin\Release\netcoreapp2.1\win10-x64\publish\circleci-demo-windows.exe
+      test-vs-dotnetcore-sample-project:
+        steps:
+          - run:
+              name: Clone sample .net sample project (continuous food delivery)
+              command: |
+                ls -R
+                git clone https://github.com/CircleCI-Public/sample-dotnet-cfd.git
+          - run:
+              name: "Install sample .net cfd project dependencies"
+              command: dotnet.exe restore src\Cfd
+              working_directory: .\sample-dotnet-cfd
+              shell: powershell.exe
+          - run:
+              name: "Build sample .net cfd project"
+              command: dotnet build src\Cfd
+              working_directory: .\sample-dotnet-cfd
+              shell: powershell.exe
+          - run:
+              name: "Build sample .net cfd tests"
+              command: |
+                mkdir test-results
+                dotnet test ./Cfd.Tests --logger:"junit;LogFilePath=test-results/dotnet-sample-cfd/xunit.xml"
+              working_directory: .\sample-dotnet-cfd
+              shell: powershell.exe
+          - store_test_results:
+              path: ./Cfd.Tests/test-results
+          - store_artifacts:
+              path: ./Cfd.Tests/test-results
+      test-vs-ui-build:
+        steps:
+          - run: choco install winappdriver
+          - run:
+              name: Run winappdriver in background
+              background: true
+              command: |
+                cd "C:\Program Files (x86)\Windows Application Driver\"
+                Start-Process -FilePath "WinAppDriver.exe" -Wait
+              shell: powershell.exe
+          # - run:
+          #     name: Restore and build
+          #     command: |
+          #       cd circleci-demo-windows\NotepadTest
+          #       nuget restore
+          #       cd "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\msbuild\current\bin\"
+          #       .\msbuild.exe "$HOME\project\circleci-demo-windows\NotepadTest\NotepadTest.csproj"
+          #     shell: powershell.exe
+          # - run:
+          #     name: Run UI tests
+          #     command: |
+          #       cd "C:\Program Files (x86)\Microsoft Visual Studio\2022\Community\common7\ide\extensions\TestPlatform"
+          #       .\vstest.console.exe $HOME\project\circleci-demo-windows\NotepadTest\bin\debug\NotepadTest.dll
+          #     shell: powershell.exe
+      test-browsers:
+        steps:
+          - run:
+              name: Run browser tests
+              command: |
+                cd circleci-demo-windows\WebBrowserTestsSample\tests\WebBrowserTests
+                dotnet test
+              shell: powershell.exe
+
 library:
-  build_image: &build_image
+  build_image_2019: &build_image_2019
     docker:
       - image: hashicorp/packer:1.4.5
     steps:
@@ -116,6 +409,131 @@ library:
 
       - store_artifacts:
           path: /tmp/artifacts
+  build_image_2022: &build_image_2022:
+
+commands:
+  check_source_paths:
+    parameters:
+      source_dirs:
+        type: string
+        description: |
+          Only build this image if files within this path have changed. This is
+          similar to `build_if_changed` but that param checks the git hash vs
+          images already built. This one purely relies on files from the most
+          recent commit. The string is formatted like PATH, filepaths separated
+          by semicolons.
+    steps:
+      - run:
+          name: "Continue image job only if the correct paths were modified"
+          command: |
+            CHANGE="false"
+
+            if [[ $CIRCLE_BRANCH != "main" ]]; then
+                for i in $(ls -lR << parameters.source_dirs >> | awk '{print $9}'); do
+                  git diff --quiet HEAD main -- "<< parameters.source_dirs >>/${i}" || CHANGE="true"
+                  echo $CHANGE
+                done
+            fi
+
+            if [[ $CHANGE != "true" ]] && [[ $CIRCLE_BRANCH != "main" ]]; then
+              circleci step halt
+            fi
+
+  generate_gce_credentials:
+    description: "Decodes and saves GCE credentials to a json file"
+    parameters:
+      base64_gce_credentials:
+        type: env_var_name
+        default: GCE_SERVICE_CREDENTIALS_BASE64
+      output_dir:
+        type: string
+        default: /tmp
+    steps:
+      - run:
+          name: generate credentials
+          command: |
+            echo "${<< parameters.base64_gce_credentials >>}" \
+              | base64 -d \
+              > <<parameters.output_dir>>/gce-credentials.json
+          shell: bash
+
+  gcloud_sdk:
+    parameters:
+      key_file:
+        type: string
+    steps:
+      - run:
+          name: install and configure gcloud sdk
+          command: |
+            VERSION=462.0.1-linux-x86_64
+            curl --silent --show-error --location --output /tmp/google-cloud-sdk-${VERSION}.tar.gz \
+            "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-462.0.1-linux-x86_64.tar.gz"
+
+            echo "cd7f8e7ec0197a200bdf5da0cf85e53b1583b6d18df4243c4fa81c553a524603  /tmp/google-cloud-sdk-${VERSION}.tar.gz" | sha256sum -c -
+
+            tar xf /tmp/google-cloud-sdk-${VERSION}.tar.gz
+
+            ./google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=<< parameters.key_file >>
+
+  ensure_path:
+    description: "Ensures that the provided path exists"
+    parameters:
+      path:
+        type: string
+    steps:
+      - run:
+          name: ensure << parameters.path >> exists
+          command: mkdir -p << parameters.path >>
+
+  yaml_to_json_ansible:
+    description: "Uses pyyaml to convert a yaml file to json"
+    parameters:
+      yaml_file:
+        type: string
+      json_file:
+        type: string
+    steps:
+      - run:
+          name: install pyyaml
+          command: pip3 install pyyaml
+      - run:
+          name: convert << parameters.yaml_file >> to << parameters.json_file >>
+          command: |
+            cat ./<< parameters.yaml_file >> \
+              | python3 -c 'import sys, yaml, json; y=yaml.safe_load(sys.stdin.read()); print(json.dumps(y))' \
+              > ./<< parameters.json_file >>
+
+  install_tools:
+    steps:
+      - run:
+          name: Setup yq
+          command: choco install yq -y
+
+  halt_job_if_no_image_built:
+    parameters:
+      packer_provider:
+        type: string
+      workspace_path:
+        type: string
+        default: "/tmp/workspace"
+      build_log_dir:
+        type: string
+        default: "/tmp/workspace"
+    steps:
+      - attach_workspace:
+          at: << parameters.workspace_path >>
+      - run:
+          name: Halt job if no just-built image found
+          command: |
+            BUILD_LOG_PATH="<<parameters.build_log_dir>>/<<parameters.packer_provider>>-build.log"
+            if [[ -f $BUILD_LOG_PATH ]]; then
+              IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
+              echo Detected just-built image $IMAGE_NAME
+            else
+              echo "No just-built image detected; halting job"
+              circleci step halt
+            fi
+          shell: bash
 
 jobs:
   gc_old_ec2_instances:
@@ -181,26 +599,549 @@ jobs:
 
             /usr/local/bin/run-gc
 
-  windows_visualstudio_gcp: *build_image
+  windows_visualstudio_gcp_2019: *build_image_2019
 
-  windows_visualstudio_aws: *build_image
+  windows_visualstudio_aws_2019: *build_image_2019
+  
+  renovate-config-validator:
+    docker:
+      - image: renovate/renovate
+    steps:
+      - checkout
+      - run: renovate-config-validator
+
+  build_image_ansible:
+    executor: deploy
+    parameters:
+      packer_provider:
+        type: enum
+        enum: [ "googlecompute", "amazon-ebs" ]
+      path:
+        type: string
+      build_if_changed:
+        type: string
+        description: "Build if files under this path have changed since the last build"
+      branch:
+        type: string
+        description: ansible branch to build from
+        default: "main"
+      output_as:
+        type: string
+        default: ""
+        description: "An alias to describe the image that we are creating in this job. This is used by downstream jobs in the same workflow."
+      build_from:
+        type: string
+        default: ""
+        description: "An alias to describe the image that we are basing this one on. This should correspond to the output_as parameter used by some upstream job in the workflow."
+      vars:
+        type: string
+        default: ""
+        description: "Override additional vars during this packer build. Should be space-separated 'k=v' pairs."
+      image_group:
+        type: string
+        default: ""
+        description: Should be equivalent to "output_as" and also how we parse where manifest files go in the s3 bucket
+          the naming convention should be similar to `os-version-arch` or `os-variant-[version]` e.g "linux-2204-amd64",
+          "linux-android", or "linux-cuda-12"
+      image_name:
+        type: string
+        default: ""
+        description: "Equivalent to what we would submit as the name of an image in `machine-provisioner` e.g `ubuntu-2204`:<<tag>>"
+      image_tag:
+        type: string
+        default: ""
+        description: The tag that will be associated with the image being built. For example, an quarterly image for linux would be
+          "2023.07.1". This is inserted into the manfiest as a means for us to identify which generated image in AWS or GCP is associated
+          with what tag
+      playbook_file:
+        type: string
+        default: "ansible/windows-playbook.yml"
+        description: "Specify which playbook_file to use with ansible and overrides any other option"
+      gcp_source_image:
+        type: string
+        default: "ubuntu-2204-jammy-v20220810"
+        description: "Specify the source image and override any existing option"
+      ami_filter_name:
+        type: string
+        default: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
+      ami_tag_key:
+        type: string
+        default: "circle_sha"
+        description: "Used for AWS source_ami_filter values. Specify a tag key to use if needed. The default is set to monorepo_content_sha"
+      ami_tag_value:
+        type: string
+        default: ""
+        description: "Used for AWS source_ami_filter values Specify a circlei_sha to find an image.
+          This ID is what we capture as the unique AMI ID"
+      skip_create_ami:
+        type: boolean
+        default: false
+        description: "Used for skipping AWS image creation. mainly for testing"
+      skip_create_image:
+        type: boolean
+        default: false
+        description: "Used for skipping GCP image creation. mainly for testing purposes"
+      source_dirs:
+        type: string
+        description: |
+          Only build this image if files within this path have changed. This is
+          similar to `build_if_changed` but that param checks the git hash vs
+          images already built. This one purely relies on files from the most
+          recent commit. The string is formatted like PATH, filepaths separated
+          by semicolons.
+    steps:
+      - checkout
+      - check_source_paths:
+          source_dirs: << parameters.source_dirs >>
+      - generate_gce_credentials
+      - run: sudo apt-get update
+      - run: pip install awscli
+      - run:
+          name: "Clone in Ansible Playbook"
+          command: git clone --branch << parameters.branch >> https://github.com/CircleCI-Public/ansible.git
+      - run:
+          name: "Install ansible windows libs "
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy collection install ansible.windows && break || sleep 5;
+            done
+      - run:
+          name: "Install ansible community windows libs"
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy collection install community.windows && break || sleep 5;
+            done
+      - run:
+          name: 'Install ansible community iptables_persistent'
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy install chmduquesne.iptables_persistent && break || sleep 5;
+            done
+      - run:
+          name: 'Install ansible community.general'
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy collection install community.general && break || sleep 5;
+            done
+      - run:
+          name: "Install pywinrm"
+          command: pip install "pywinrm>=0.3.0"
+      - run:
+          name: "Display packer version"
+          command: packer --version
+      - run:
+          name: "Install Packer"
+          command: |
+            # Install older version of packer
+            export PACKER_VER=1.8.5
+            wget "https://releases.hashicorp.com/packer/${PACKER_VER}/packer_${PACKER_VER}_linux_amd64.zip" -O packer.zip
+            unzip packer.zip
+            rm packer.zip
+            sudo mv packer /usr/local/bin
+      - run:
+          name: "Display packer version"
+          command: packer --version
+      - attach_workspace:
+          at: /tmp/workspace
+      - gcloud_sdk:
+          key_file: "/tmp/gce-credentials.json"
+      - ensure_path:
+          path: "/tmp/artifacts/"
+      - yaml_to_json_ansible:
+          yaml_file: "<< parameters.path >>/packer.yaml"
+          json_file: "<< parameters.path >>/packer.json"
+      - run: mkdir /tmp/results
+      - run:
+          name: Build images
+          no_output_timeout: 120m
+          environment:
+            # The AMI can take a very long time to be ready. These env
+            # vars make packer wait 2 hours for this to happen before
+            # giving up.
+            AWS_MAX_ATTEMPTS: 180
+            AWS_POLL_DELAY_SECONDS: 90
+          command: |
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha << parameters.build_if_changed >>)"
+            if [[ "<< parameters.build_from >>" ]]; then
+              echo Fetching the output image of << parameters.build_from >>
+              SOURCE_IMAGE=$(cat /tmp/workspace/<< parameters.build_from >>)
+              echo Using $SOURCE_IMAGE as the base image
+              SOURCE_IMAGE_VAR="--var source_image=$SOURCE_IMAGE"
+            fi
+            [[ $CIRCLE_BRANCH != main ]] && IMAGE_FAMILY_SUFFIX="-dev"
+
+            case << parameters.packer_provider >> in
+              googlecompute)
+                WINDOWS_USER="circleci_packer"
+                ;;
+              amazon-ebs)
+                WINDOWS_USER="Administrator"
+                ;;
+              *)
+                echo "Unrecognized packer_provider value: << parameters.packer_provider >>."
+                exit 1
+                ;;
+            esac
+
+            ./scripts/get_last_image << parameters.packer_provider >> "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
+                echo "<< parameters.packer_provider >> image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
+              } || packer build \
+              -machine-readable \
+              --only << parameters.packer_provider >> \
+              --var project_id=${GCE_SERVICE_PROJECT} \
+              --var account_file=/tmp/gce-credentials.json \
+              --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
+              --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
+              --var ami_region="us-east-1" \
+              --var windows_user="${WINDOWS_USER}" \
+              --var test_results_path="/tmp/results/test-results.xml" \
+              --var playbook_file="<< parameters.playbook_file >>" \
+              --var source_image="<< parameters.gcp_source_image >>" \
+              --var ami_filter_name=<< parameters.ami_filter_name >> \
+              --var ami_tag_key="<< parameters.ami_tag_key >>" \
+              --var ami_tag_value="<< parameters.ami_tag_value >>" \
+              --var skip_create_ami="<< parameters.skip_create_ami >>" \
+              --var skip_create_image="<< parameters.skip_create_image >>" \
+              ${SOURCE_IMAGE_VAR} \
+              << parameters.vars >> \
+              << parameters.path >>/packer.json | tee /tmp/artifacts/<< parameters.packer_provider >>-build.log
+      - run:
+          name: Summarize results
+          command: |
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha << parameters.build_if_changed >>)"
+            BUILD_LOG_PATH="/tmp/artifacts/<< parameters.packer_provider >>-build.log"
+            if [[ -f $BUILD_LOG_PATH ]]; then
+              IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
+              echo Recording just-built image $IMAGE_NAME as the output of this job
+            else
+              IMAGE_NAME=$(./scripts/get_last_image << parameters.packer_provider >> "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
+              echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
+            fi
+
+            echo "Image ${IMAGE_NAME} is the latest image with content SHA ${MONOREPO_CONTENT_SHA}."
+
+            if [[ -n "<< parameters.output_as >>" ]]; then
+              echo $IMAGE_NAME | tee /tmp/artifacts/<< parameters.output_as >>
+            else
+              echo "output_as orb parameter is not set. $IMAGE_NAME will not be recorded as the output of this job."
+            fi
+      - slack/notify:
+          channel: CDD5K9SBW
+          branch_pattern: fixes
+          event: fail
+          template: basic_fail_1
+      - run:
+          name: Copy image to regions
+          command: |
+            export CLOUDSDK_CORE_PROJECT=${GCE_SERVICE_PROJECT}
+            if [[ $CIRCLE_BRANCH == main ]]; then
+              if [[ << parameters.packer_provider >> == "amazon-ebs" ]]; then
+                ./scripts/copy-ami-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB} us-east-1
+              elif [[ << parameters.packer_provider >> == "googlecompute" ]]; then
+                ./scripts/copy-gce-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB}
+              else
+                echo 'Image copying skipped, unknown packer provider: << parameters.packer_provider >>'
+              fi
+            else
+              echo 'Branch is not main. Copying will be skipped.'
+            fi
+      - run:
+          name: Copy down manifest and build URL
+          command: |
+            cp ansible/manifest/software.json /tmp/artifacts/manifest
+            echo "export PARAM_BUILD_URL=${CIRCLE_BUILD_URL}" >> /tmp/artifacts/build_url
+
+      - persist_to_workspace:
+          root: /tmp/artifacts
+          paths:
+            - << parameters.output_as >>
+            - << parameters.packer_provider >>-build.log
+            - windows2022/software.yml
+            - build_url
+      - run:
+          name: save test results if there are any
+          command: |
+            if [[ -f /tmp/results/test-results.xml ]]; then
+              cp /tmp/results/test-results.xml /tmp/artifacts
+            fi
+
+      - store_test_results:
+          path: /tmp/results
+
+      - store_artifacts:
+          path: /tmp/artifacts
+  wait_for_image_family_update:
+    parameters:
+      executor:
+        type: executor
+      packer_provider:
+        type: string
+        default: "googlecompute"
+      image_family_name:
+        type: string
+      workspace_path:
+        type: string
+        default: "/tmp/workspace"
+      build_log_dir:
+        type: string
+        default: "/tmp/workspace"
+      credentials_output_dir:
+        type: string
+        default: "/tmp"
+      wait_time:
+        type: integer
+        description: Wait time in seconds
+        default: 180
+    executor: <<parameters.executor>>
+    steps:
+      - checkout
+      - halt_job_if_no_image_built:
+          packer_provider: <<parameters.packer_provider>>
+          workspace_path: <<parameters.workspace_path>>
+          build_log_dir: <<parameters.build_log_dir>>
+      - generate_gce_credentials:
+          output_dir: <<parameters.credentials_output_dir>>
+      - gcloud_sdk:
+          key_file: <<parameters.credentials_output_dir>>/gce-credentials.json
+      - run:
+          name: Wait for image family <<parameters.image_family_name>> to register just-built image
+          command: |
+            BUILD_LOG_PATH="<<parameters.build_log_dir>>/googlecompute-build.log"
+            IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
+            ./google-cloud-sdk/bin/gcloud compute images describe-from-family <<parameters.image_family_name>> --format 'value(name)'
+            while [ "`./google-cloud-sdk/bin/gcloud compute images describe-from-family <<parameters.image_family_name>> --format 'value(name)' | head`" != "$IMAGE_NAME" ] ;
+            do
+              echo "Waiting for image family <<parameters.image_family_name>> to be updated to $IMAGE_NAME"
+              sleep 15;
+            done
+            # Sleep for amount of time
+            sleep <<parameters.wait_time>>
+          shell: bash
+  test_windows_canary:
+    parameters:
+      packer_provider:
+        type: string
+        default: "googlecompute"
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    shell: powershell.exe
+    steps:
+      - checkout
+      - halt_job_if_no_image_built:
+          packer_provider: <<parameters.packer_provider>>
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+      - windows-test/test-ssh
+      - windows-test/test-vs-build
+      - windows-test/test-vs-ui-build
+      - windows-test/test-browsers
+  validate_windows_canary:
+    parameters:
+      packer_provider:
+        type: string
+        default: "googlecompute"
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    shell: powershell.exe
+    steps:
+      - checkout
+      - halt_job_if_no_image_built:
+          packer_provider: <<parameters.packer_provider>>
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+      - run:
+          name: Run validation scripts
+          command: |
+            Get-ChildItem 'C:\tests\validation-scripts' | ForEach-Object {
+              & $_.FullName
+            }
+      - run:
+          name: Save manifest
+          command: |
+            New-Item -Path "C:\tmp\software" -ItemType Directory
+            cp "C:\InstalledSoftware.md" "C:\tmp\software"
+      - store_artifacts:
+          path: "C:\\tmp\\software"
+
+  test_windows_canary_unit:
+    parameters:
+      packer_provider:
+        type: string
+        default: "googlecompute"
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    environment:
+      MANIFEST_PATH: windows\software.yml
+    steps:
+      - checkout
+      - install_tools
+      - halt_job_if_no_image_built:
+          packer_provider: <<parameters.packer_provider>>
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+      - image-test/test-node
+      - image-test/test-python3
+      - image-test/test-java:
+          version: '22' # TODO: is this expected to always be the latest release?
+      - image-test/test-ruby:
+          version-string: 'ruby 3.3.0'
+      - image-test/test-docker
+      - image-test/test-rust
+      - image-test/test-go
+      - image-test/test-awscli-v2
+      - image-test/test-azure
+      - run:
+            name: DEBUG - Reveal user-local PowerShell profile if exists
+            command: |
+              $profilePath = "${env:USERPROFILE}\Documents\WindowsPowerShell\Microsoft.PowerShell_profile.ps1"
+              If (Test-Path "${profilePath}") {
+                  Get-Content "${profilePath}"
+              }
+            shell: powershell.exe
+      - run:
+            name: set environment Variable
+            command: |
+              [Environment]::SetEnvironmentVariable('Foo', 'Bar', 'Machine')
+            shell: powershell.exe
+      - run:
+            name: get environment Variable
+            command: |
+              [Environment]::GetEnvironmentVariable('Foo')
+            shell: powershell.exe
+
+  test_windows_dotnetcore_canary:
+    parameters:
+      packer_provider:
+        type: string
+        default: "googlecompute"
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    steps:
+      - checkout
+      - halt_job_if_no_image_built:
+          packer_provider: <<parameters.packer_provider>>
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+      - windows-test/test-ssh
+      - windows-test/test-vs-dotnetcore-helloworld
+
+  test_windows_dotnetcore_sampleproject_canary:
+    parameters:
+      packer_provider:
+        type: string
+        default: "googlecompute"
+      executor:
+        type: executor
+    executor: <<parameters.executor>>
+    steps:
+      - checkout
+      - halt_job_if_no_image_built:
+          packer_provider: <<parameters.packer_provider>>
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+      - windows-test/test-vs-dotnetcore-sample-project
 
 workflows:
   version: 2
 
-  build_all_images:
+  build_all_images_2019:
     jobs:
-      - windows_visualstudio_gcp:
+      - windows_visualstudio_gcp_2019:
           context: circleci-server-image-builder
-      - windows_visualstudio_aws:
-          context: circleci-server-image-builder
+      - windows_visualstudio_aws_2019:
+          context: CPE_ORBS_AWS
+  build_gcp_2022:
+    jobs:
+      - renovate-config-validator
+      - build_image_ansible:
+          name: windows_2022_visualstudio_gcp
+          path: "windows2022/visual-studio-2022"
+          build_if_changed: "windows2022"
+          source_dirs: "windows2022"
+          packer_provider: "googlecompute"
+          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+      - wait_for_image_family_update:
+          name: wait_for_windows_2022_vs_gcp_canary_update
+          executor: windows-2022-canary
+          image_family_name: windows-server2022-canary
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+          credentials_output_dir: /c/windows/temp
+          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - windows_2022_visualstudio_gcp
+      - test_windows_canary_unit:
+          executor: windows-2022-canary
+          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - wait_for_windows_2022_vs_gcp_canary_update
+      - validate_windows_canary:
+          executor: windows-2022-canary
+          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - test_windows_canary_unit
+      - test_windows_dotnetcore_canary:
+          executor: windows-2022-canary
+          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - wait_for_windows_2022_vs_gcp_canary_update
+      - test_windows_dotnetcore_sampleproject_canary:
+          executor: windows-2022-canary
+          context: [circleci-server-image-builder, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - test_windows_dotnetcore_canary
+
+  build_aws_2022:
+    jobs:
+      - renovate-config-validator
+      - build_image_ansible:
+          name: windows_2022_visualstudio_aws
+          path: "windows2022/visual-studio-2022"
+          build_if_changed: "windows2022"
+          source_dirs: "windows2022"
+          packer_provider: "amazon-ebs"
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+      - wait_for_image_family_update:
+          name: wait_for_windows_2022_vs_aws_canary_update
+          executor: windows-2022-canary
+          image_family_name: windows-server2022-canary
+          workspace_path: c:\\Windows\\temp\\workspace
+          build_log_dir: /c/windows/temp/workspace
+          credentials_output_dir: /c/windows/temp
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - windows_2022_visualstudio_aws
+      - test_windows_canary_unit:
+          executor: windows-2022-canary
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - wait_for_windows_2022_vs_aws_canary_update
+      - validate_windows_canary:
+          executor: windows-2022-canary
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - test_windows_canary_unit
+      - test_windows_dotnetcore_canary:
+          executor: windows-2022-canary
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - wait_for_windows_2022_vs_aws_canary_update
+      - test_windows_dotnetcore_sampleproject_canary:
+          executor: windows-2022-canary
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+          requires:
+            - test_windows_dotnetcore_canary
 
   daily:
     jobs:
       - gc_old_gce_instances:
           context: circleci-server-image-builder
       - gc_old_ec2_instances:
-          context: circleci-server-image-builder
+          context: CPE_ORBS_AWS
     triggers:
       - schedule:
           cron: "17 12 * * *"

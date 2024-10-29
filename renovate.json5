@@ -1,0 +1,42 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "ignorePaths": [".circleci/config.yml"],
+  "schedule": ["before 8am on Wednesday"],
+  "groupName": "windows-2019",
+  "groupSlug": "windows-2019-release",
+  "customManagers": [
+    {
+      "customType": "regex",
+      "fileMatch": ["software.yml"],
+      "matchStrings": [
+        "#\\s*renovate:\\s*datasource=(?<datasource>.*?) depName=(?<depName>.*?)( versioning=(?<versioning>.*?))?\\s.*?_version:\\s*(?<currentValue>.*)\\s"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchPackagePatterns": ["^chocolatey/nvm"],
+      "allowedVersions": "<=1.1.11"
+    },
+    {
+      "matchPackagePatterns": ["^chocolatey/nodejs"],
+      "allowedVersions": "<=20.11.0"
+    },
+    {
+      "datasources": [
+        "repology"
+      ],
+      "packagePatterns": [
+        "^chocolatey/"
+      ],
+      "separateMajorMinor": false,
+      "groupName": "chocolatey packages",
+      "groupSlug": "chocolatey"
+    },
+  ],
+  "separateMajorMinor": false
+}
