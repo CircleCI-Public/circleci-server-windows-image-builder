@@ -23,6 +23,7 @@ builders:
     access_key: ""
     secret_key: ""
     region: '{{ user "ami_region" }}'
+    subnet_id: "subnet-083e561ae80d18f82"
     source_ami_filter:
       filters:
         virtualization-type: "hvm"
