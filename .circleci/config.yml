@@ -374,7 +374,7 @@ library:
               --var gce_zone="${GOOGLE_COMPUTE_ZONE}" \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
               --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
-              --var ami_region="${AWS_DEFAULT_REGION}" \
+              --var ami_region="us-east-1" \
               --var windows_user="${WINDOWS_USER}" \
               --var test_results_path="/tmp/results/test-results.xml" \
               ${SOURCE_IMAGE_VAR} \
@@ -1034,13 +1034,13 @@ workflows:
   #   - dummy:
   #       context: [cpe-gcp, CPE_ORBS_AWS, circleci-server-image-builder]
 
-  # build_all_images_2019:
-  #   jobs:
-  #     - windows_visualstudio_gcp_2019:
-  #         context: cpe-gcp
-  #     - windows_visualstudio_aws_2019:
-  #         context: CPE_ORBS_AWS
-  
+  build_all_images_2019:
+    jobs:
+      - windows_visualstudio_gcp_2019:
+          context: cpe-gcp
+      - windows_visualstudio_aws_2019:
+          context: CPE_ORBS_AWS
+
   build_gcp_2022:
     jobs:
       - renovate-config-validator
