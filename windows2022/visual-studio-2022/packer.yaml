@@ -130,7 +130,7 @@ provisioners:
     playbook_file: "ansible/windows-playbook.yml"
     user: ansible
     keep_inventory_file: true
-    extra_arguments: ["-vvvv", "--connection", "packer", "--extra-vars", "ansible_user={{user `windows_user`}}", "--extra-vars", "ansible_password={{.WinRMPassword}}", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows2022/software.yml", "--tags", "build"]
+    extra_arguments: ["-vvvv", "--connection", "packer", "--extra-vars", "ansible_user=circleci", "--extra-vars", "ansible_password=gFo8.UbL-@Ln*q-m", "--extra-vars", "ansible_shell_executable=None", "--extra-vars", "ansible_shell_type=powershell", "--extra-vars", "ansible_winrm_server_cert_validation=ignore", "--extra-vars",  "@windows2022/software.yml", "--tags", "build"]
     use_proxy: false
 
   - type: powershell
