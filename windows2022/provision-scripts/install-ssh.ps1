@@ -66,5 +66,5 @@ Restart-Service sshd
 Write-Host "Done"
 
 # Set bash as the default shell for SSH.
-$BashCommand = Get-Command "bash.exe"
-New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value $BashCommand.source -PropertyType String -Force
+# $BashCommand = Get-Command "bash.exe"
+# New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value $BashCommand.source -PropertyType String -Force
