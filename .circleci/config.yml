@@ -1034,10 +1034,10 @@ workflows:
   #   - dummy:
   #       context: [cpe-gcp, CPE_ORBS_AWS, circleci-server-image-builder]
 
-  # build_aws_2019:
-  #   jobs:
-  #     - windows_visualstudio_aws_2019:
-  #         context: CPE_ORBS_AWS
+  build_aws_2019:
+    jobs:
+      - windows_visualstudio_aws_2019:
+          context: CPE_ORBS_AWS
 
   # build_gcp_2019:
   #   jobs:

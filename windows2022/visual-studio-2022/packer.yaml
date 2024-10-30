@@ -29,7 +29,6 @@ builders:
       most_recent: true
     instance_type: "m5.2xlarge"
     ami_name: "windows-server-2022-vs2022-{{timestamp}}"
-    ami_groups: "all"
     user_data_file: ./windows2022/visual-studio-2022/user_data.ps1
     communicator: "winrm"
     force_deregister: true
