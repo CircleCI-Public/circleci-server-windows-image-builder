@@ -25,7 +25,7 @@ builders:
         virtualization-type: "hvm"
         root-device-type: "ebs"
         name: "Windows_Server-2022-English-Full-ECS_Optimized-*"
-      owners: ["801119661308"]
+      owners: ["amazon"]
       most_recent: true
     instance_type: "m5.2xlarge"
     ami_name: "windows-server-2022-vs2022-{{timestamp}}"
