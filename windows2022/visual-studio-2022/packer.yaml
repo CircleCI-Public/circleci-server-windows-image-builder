@@ -20,7 +20,6 @@ builders:
     secret_key: ""
     region: '{{ user "ami_region" }}'
     skip_profile_validation: true
-    subnet_id: "subnet-083e561ae80d18f82"
     source_ami_filter:
       filters:
         virtualization-type: "hvm"
