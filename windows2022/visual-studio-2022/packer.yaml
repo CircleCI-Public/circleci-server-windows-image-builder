@@ -39,6 +39,7 @@ builders:
         volume_type: "gp2"
         delete_on_termination: true
     winrm_username: '{{ user "windows_user" }}'
+    winrm_password: "*T3mpor4lT3st!%"
     winrm_insecure: true
     winrm_use_ssl: true
     winrm_timeout: "30m"
