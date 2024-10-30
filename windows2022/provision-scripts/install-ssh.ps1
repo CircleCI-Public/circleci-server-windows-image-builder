@@ -3,6 +3,7 @@ $ErrorActionPreference = "Stop"
 # Enable SSH
 Write-Host "Adding SSH Capability"
 Add-WindowsCapability -Online -Name OpenSSH.Server~~~~0.0.1.0
+Add-WindowsCapability -Online -Name OpenSSH.Client
 
 Start-Service sshd
 Set-Service -Name sshd -StartupType 'Automatic'
