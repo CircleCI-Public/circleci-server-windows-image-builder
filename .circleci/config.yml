@@ -1029,58 +1029,6 @@ jobs:
       - windows-test/test-vs-dotnetcore-sample-project
 
 workflows:
-  # dummy-wf:
-  #   jobs:
-  #   - dummy:
-  #       context: [cpe-gcp, CPE_ORBS_AWS, circleci-server-image-builder]
-
-  build_all_images_2019:
-    jobs:
-      # - windows_visualstudio_gcp_2019:
-      #     context: cpe-gcp
-      - windows_visualstudio_aws_2019:
-          context: CPE_ORBS_AWS
-
-  # build_gcp_2022:
-  #   jobs:
-  #     - renovate-config-validator
-  #     - build_image_ansible:
-  #         name: windows_2022_visualstudio_gcp
-  #         path: "windows2022/visual-studio-2022"
-  #         build_if_changed: "windows2022"
-  #         source_dirs: "windows2022"
-  #         packer_provider: "googlecompute"
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
-  #     - wait_for_image_family_update:
-  #         name: wait_for_windows_2022_vs_gcp_canary_update
-  #         executor: windows-2022-canary
-  #         image_family_name: windows-server2022-canary
-  #         workspace_path: c:\\Windows\\temp\\workspace
-  #         build_log_dir: /c/windows/temp/workspace
-  #         credentials_output_dir: /c/windows/temp
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
-  #         requires:
-  #           - windows_2022_visualstudio_gcp
-  #     - test_windows_canary_unit:
-  #         executor: windows-2022-canary
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
-  #         requires:
-  #           - wait_for_windows_2022_vs_gcp_canary_update
-  #     - validate_windows_canary:
-  #         executor: windows-2022-canary
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
-  #         requires:
-  #           - test_windows_canary_unit
-  #     - test_windows_dotnetcore_canary:
-  #         executor: windows-2022-canary
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
-  #         requires:
-  #           - wait_for_windows_2022_vs_gcp_canary_update
-  #     - test_windows_dotnetcore_sampleproject_canary:
-  #         executor: windows-2022-canary
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
-  #         requires:
-  #           - test_windows_dotnetcore_canary
 
   build_aws_2022:
     jobs:
@@ -1122,6 +1070,62 @@ workflows:
           context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
           requires:
             - test_windows_dotnetcore_canary
+
+  # dummy-wf:
+    jobs:
+    - dummy:
+        context: [cpe-gcp, CPE_ORBS_AWS, circleci-server-image-builder]
+
+  # build_aws_2019:
+    jobs:
+      - windows_visualstudio_aws_2019:
+          context: CPE_ORBS_AWS
+
+  # build_gcp_2019:
+    jobs:
+      - windows_visualstudio_gcp_2019:
+          context: cpe-gcp
+
+  # build_gcp_2022:
+  #   jobs:
+  #     - renovate-config-validator
+  #     - build_image_ansible:
+  #         name: windows_2022_visualstudio_gcp
+  #         path: "windows2022/visual-studio-2022"
+  #         build_if_changed: "windows2022"
+  #         source_dirs: "windows2022"
+  #         packer_provider: "googlecompute"
+  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  #     - wait_for_image_family_update:
+  #         name: wait_for_windows_2022_vs_gcp_canary_update
+  #         executor: windows-2022-canary
+  #         image_family_name: windows-server2022-canary
+  #         workspace_path: c:\\Windows\\temp\\workspace
+  #         build_log_dir: /c/windows/temp/workspace
+  #         credentials_output_dir: /c/windows/temp
+  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  #         requires:
+  #           - windows_2022_visualstudio_gcp
+  #     - test_windows_canary_unit:
+  #         executor: windows-2022-canary
+  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  #         requires:
+  #           - wait_for_windows_2022_vs_gcp_canary_update
+  #     - validate_windows_canary:
+  #         executor: windows-2022-canary
+  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  #         requires:
+  #           - test_windows_canary_unit
+  #     - test_windows_dotnetcore_canary:
+  #         executor: windows-2022-canary
+  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  #         requires:
+  #           - wait_for_windows_2022_vs_gcp_canary_update
+  #     - test_windows_dotnetcore_sampleproject_canary:
+  #         executor: windows-2022-canary
+  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  #         requires:
+  #           - test_windows_dotnetcore_canary
 
   daily:
     jobs:
