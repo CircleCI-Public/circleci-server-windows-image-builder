@@ -118,10 +118,11 @@ provisioners:
   #   elevated_user: '{{ user "windows_user" }}'
   #   elevated_password: "{{.WinRMPassword}}"
   #   script: "windows2022/provision-scripts/ConfigureRemotingForAnsible.ps1"
+
   - type: powershell
     inline:
-      - "Start-Sleep -Seconds 30"
-      - "choco install docker-engine -y --force --install-arguments='/VERYSILENT'"
+      - if (Get-Command "docker" -ErrorAction SilentlyContinue) { Write-Output "Docker is installed" } else { Write-Output "Docker is not installed" }
+      - if (Test-Path "C:\\Program Files\\docker\\dockerd.exe") { Write-Output "Docker binary exists" } else { Write-Output "Docker binary doesn't exist" }
 
   - type: ansible
     playbook_file: "ansible/windows-playbook.yml"
