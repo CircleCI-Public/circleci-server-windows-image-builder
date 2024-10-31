@@ -121,8 +121,7 @@ provisioners:
 
   - type: powershell
     inline:
-      - if (Get-Command "docker" -ErrorAction SilentlyContinue) { Write-Output "Docker is installed" } else { Write-Output "Docker is not installed" }
-      - if (Test-Path "C:\\Program Files\\docker\\dockerd.exe") { Write-Output "Docker binary exists" } else { Write-Output "Docker binary doesn't exist" }
+      - if (Test-Path "C:\\Program Files\\docker") { icacls "C:\\Program Files\\docker" /grant Users:F }
 
   - type: ansible
     playbook_file: "ansible/windows-playbook.yml"
