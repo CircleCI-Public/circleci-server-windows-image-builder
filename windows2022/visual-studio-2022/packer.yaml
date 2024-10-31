@@ -24,7 +24,7 @@ builders:
       filters:
         virtualization-type: "hvm"
         root-device-type: "ebs"
-        name: "Windows_Server-2022-English-Full-Base-*"
+        name: "Windows_Server-2022-English-Full-ECS_Optimized-*"
       owners: ["amazon"]
       most_recent: true
     instance_type: "m5.2xlarge"
@@ -92,11 +92,11 @@ builders:
 
     image_labels:
       region: us
-      circle_build_url: '{{ user "circle_build_url" | clean_resource_name }}'
+      # circle_build_url: '{{ user "circle_build_url" | clean_resource_name }}'
       circle_job_name: '{{ user "circle_job_name" | clean_resource_name }}'
       circle_sha: '{{ user "circle_sha" | clean_resource_name }}'
       monorepo_content_sha: '{{ user "monorepo_content_sha" | clean_resource_name }}'
-
+https---circleci-com-gh-***************-windows-2022-132
 provisioners:
   - type: file
     source: "windows2022/ImageHelpers"
@@ -118,6 +118,10 @@ provisioners:
   #   elevated_user: '{{ user "windows_user" }}'
   #   elevated_password: "{{.WinRMPassword}}"
   #   script: "windows2022/provision-scripts/ConfigureRemotingForAnsible.ps1"
+  - type: powershell
+    inline:
+      - Start-Sleep -Seconds 30
+      - choco install docker-engine -y --force --install-arguments='/VERYSILENT'
 
   - type: ansible
     playbook_file: "ansible/windows-playbook.yml"
