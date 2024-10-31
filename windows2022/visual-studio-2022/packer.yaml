@@ -119,10 +119,6 @@ provisioners:
   #   elevated_password: "{{.WinRMPassword}}"
   #   script: "windows2022/provision-scripts/ConfigureRemotingForAnsible.ps1"
 
-  - type: powershell
-    inline:
-      - if (Test-Path "C:\\Program Files\\docker") { icacls "C:\\Program Files\\docker" /grant Users:F }
-
   - type: ansible
     playbook_file: "ansible/windows-playbook.yml"
     user: ansible

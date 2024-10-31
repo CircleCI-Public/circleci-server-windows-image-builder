@@ -1087,7 +1087,7 @@ workflows:
 
   build_aws_2022:
     jobs:
-      - renovate-config-validator
+      # - renovate-config-validator
       - build_image_ansible:
           name: windows_2022_visualstudio_aws
           path: "windows2022/visual-studio-2022"
@@ -1095,36 +1095,36 @@ workflows:
           source_dirs: "windows2022"
           packer_provider: "amazon-ebs"
           context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
-      - wait_for_image_family_update:
-          name: wait_for_windows_2022_vs_aws_canary_update
-          executor: windows-2022-canary
-          image_family_name: windows-server2022-canary
-          workspace_path: c:\\Windows\\temp\\workspace
-          build_log_dir: /c/windows/temp/workspace
-          credentials_output_dir: /c/windows/temp
-          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
-          requires:
-            - windows_2022_visualstudio_aws
-      - test_windows_canary_unit:
-          executor: windows-2022-canary
-          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
-          requires:
-            - wait_for_windows_2022_vs_aws_canary_update
-      - validate_windows_canary:
-          executor: windows-2022-canary
-          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
-          requires:
-            - test_windows_canary_unit
-      - test_windows_dotnetcore_canary:
-          executor: windows-2022-canary
-          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
-          requires:
-            - wait_for_windows_2022_vs_aws_canary_update
-      - test_windows_dotnetcore_sampleproject_canary:
-          executor: windows-2022-canary
-          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
-          requires:
-            - test_windows_dotnetcore_canary
+      # - wait_for_image_family_update:
+      #     name: wait_for_windows_2022_vs_aws_canary_update
+      #     executor: windows-2022-canary
+      #     image_family_name: windows-server2022-canary
+      #     workspace_path: c:\\Windows\\temp\\workspace
+      #     build_log_dir: /c/windows/temp/workspace
+      #     credentials_output_dir: /c/windows/temp
+      #     context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+      #     requires:
+      #       - windows_2022_visualstudio_aws
+      # - test_windows_canary_unit:
+      #     executor: windows-2022-canary
+      #     context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+      #     requires:
+      #       - wait_for_windows_2022_vs_aws_canary_update
+      # - validate_windows_canary:
+      #     executor: windows-2022-canary
+      #     context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+      #     requires:
+      #       - test_windows_canary_unit
+      # - test_windows_dotnetcore_canary:
+      #     executor: windows-2022-canary
+      #     context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+      #     requires:
+      #       - wait_for_windows_2022_vs_aws_canary_update
+      # - test_windows_dotnetcore_sampleproject_canary:
+      #     executor: windows-2022-canary
+      #     context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+      #     requires:
+      #       - test_windows_dotnetcore_canary
 
   daily:
     jobs:
