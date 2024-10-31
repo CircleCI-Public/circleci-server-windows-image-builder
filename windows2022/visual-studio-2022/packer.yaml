@@ -96,7 +96,7 @@ builders:
       circle_job_name: '{{ user "circle_job_name" | clean_resource_name }}'
       circle_sha: '{{ user "circle_sha" | clean_resource_name }}'
       monorepo_content_sha: '{{ user "monorepo_content_sha" | clean_resource_name }}'
-https---circleci-com-gh-***************-windows-2022-132
+      
 provisioners:
   - type: file
     source: "windows2022/ImageHelpers"
@@ -120,8 +120,8 @@ provisioners:
   #   script: "windows2022/provision-scripts/ConfigureRemotingForAnsible.ps1"
   - type: powershell
     inline:
-      - Start-Sleep -Seconds 30
-      - choco install docker-engine -y --force --install-arguments='/VERYSILENT'
+      - "Start-Sleep -Seconds 30"
+      - "choco install docker-engine -y --force --install-arguments='/VERYSILENT'"
 
   - type: ansible
     playbook_file: "ansible/windows-playbook.yml"
