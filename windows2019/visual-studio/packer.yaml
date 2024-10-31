@@ -69,11 +69,7 @@ builders:
 
     project_id: '{{ user "project_id" }}'
     account_file: '{{ user "account_file" }}'
-    zone: '{{ user "gce_zone" }}'
-    subnetwork: default
-    tags:
-      - packer-winrm
-
+    zone: us-central1-a
     state_timeout: "30m"
 
     preemptible: false
