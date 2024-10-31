@@ -54,6 +54,7 @@ builders:
       circle_build_url: '{{ user "circle_build_url" }}'
 
   - type: googlecompute
+    network: packer
     image_name: windows-server-2019-vs2019-{{timestamp}}
     image_family: windows-server-2019-vs2019
     source_image_family: windows-2019

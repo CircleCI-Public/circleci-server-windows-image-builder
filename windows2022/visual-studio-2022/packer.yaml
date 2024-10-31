@@ -55,6 +55,7 @@ builders:
       team: "execution"
 
   - type: googlecompute
+    network: packer
     image_name: windows-server-2022-vs2022-{{timestamp}}
     image_family: windows-server2022-canary
     source_image_family: windows-2022
