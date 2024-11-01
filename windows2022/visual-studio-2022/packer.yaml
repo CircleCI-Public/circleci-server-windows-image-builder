@@ -34,7 +34,7 @@ builders:
     force_deregister: true
     launch_block_device_mappings:
       - device_name: "/dev/sda1"
-        volume_size: 200
+        volume_size: 300
         volume_type: "gp2"
         delete_on_termination: true
     winrm_username: '{{ user "windows_user" }}'
