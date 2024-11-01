@@ -23,14 +23,14 @@ data "aws_ami" "windows_server_2022" {
 resource "aws_security_group" "windows_sg" {
   name ="windows_sg"
   description = "Allow RDP access"
-  ingress = {
+  ingress {
     description = "Allow RDP"
     from_port = "3389"
     to_port ="3389"
     protocol = "tcp"
     cidr_blocks = "0.0.0.0/0"
   }
-  egress = {
+  egress {
     from_port = "0"
     to_port ="0"
     protocol = "-1"

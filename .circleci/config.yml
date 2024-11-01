@@ -535,6 +535,9 @@ jobs:
       - image: hashicorp/terraform:latest
     steps:
       - checkout
+      - restore_cache:
+          keys:
+            - terraform_state
       - run: |
           cd terraform
           terraform init
