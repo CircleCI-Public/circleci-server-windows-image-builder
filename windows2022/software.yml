@@ -45,9 +45,9 @@ dotnet_sdk_version_6: 6.0.418
 # renovate: datasource=repology depName=chocolatey/dotnet-7.0-sdk
 dotnet_sdk_version_7: 7.0.405
 # renovate: datasource=repology depName=chocolatey/visualstudio2022community
-visualstudio_community_edition_version: 117.8.4.0
+visualstudio_community_edition_version: 117.11.5
 # renovate: datasource=repology depName=chocolatey/visualstudio2022buildtools
-visualstudio_buildtools_version: 117.8.4.0
+visualstudio_buildtools_version: 117.11.5
 # renovate: datasource=repology depName=chocolatey/NuGet.CommandLine
 nuget_cli_version: 6.11.1
 # renovate: datasource=repology depName=chocolatey/winappdriver
