@@ -534,6 +534,7 @@ jobs:
     docker:
       - image: hashicorp/terraform:latest
     steps:
+      - checkout
       - run: |
           cd terraform
           terraform init
