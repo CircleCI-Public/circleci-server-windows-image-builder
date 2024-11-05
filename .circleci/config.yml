@@ -2,13 +2,13 @@
 version: 2.1
 
 executors:
-  windows-2022-canary:
-    machine:
-      image: windows-server-2022-gui:canary
-      resource_class: windows.medium
+  # windows-2022-canary:
+  #   machine:
+  #     image: windows-server-2022-gui:canary
+  #     resource_class: windows.medium
   deploy:
     docker:
-      - image: cimg/deploy:2024.03
+      - image: cimg/deploy:2024.08
     shell: bash -eox pipefail
 
 orbs:
