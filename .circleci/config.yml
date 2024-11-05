@@ -8,7 +8,8 @@ executors:
   #     resource_class: windows.medium
   deploy:
     docker:
-      - image: cimg/deploy:2024.08
+      # - image: cimg/deploy:2024.08
+      - image: cimg/base:current
     shell: bash -eox pipefail
 
 orbs:
