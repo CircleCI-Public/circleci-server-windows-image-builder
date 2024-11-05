@@ -8,7 +8,7 @@ executors:
   #     resource_class: windows.medium
   deploy:
     docker:
-      - image: cimg/python:3.12
+      - image: cimg/deploy:2024.08
     shell: bash -eox pipefail
 
 orbs:
@@ -707,7 +707,7 @@ jobs:
       - check_source_paths:
           source_dirs: << parameters.source_dirs >>
       - generate_gce_credentials
-      - run: sudo apt-get update
+      # - run: sudo apt-get update
       - run: pip install awscli
       - run:
           name: "Clone in Ansible Playbook"
