@@ -1054,26 +1054,26 @@ workflows:
   #   - dummy:
   #       context: [cpe-gcp, CPE_ORBS_AWS, circleci-server-image-builder]
 
-  # build_aws_2019:
-  #   jobs:
-  #     - windows_visualstudio_aws_2019:
-  #         context: CPE_ORBS_AWS
+  build_aws_2019:
+    jobs:
+      - windows_visualstudio_aws_2019:
+          context: CPE_ORBS_AWS
 
-  # build_gcp_2019:
-  #   jobs:
-  #     - windows_visualstudio_gcp_2019:
-  #         context: cpe-gcp
+  build_gcp_2019:
+    jobs:
+      - windows_visualstudio_gcp_2019:
+          context: cpe-gcp
 
-  # build_gcp_2022:
-  #   jobs:
-  #     - renovate-config-validator
-  #     - build_image_ansible:
-  #         name: windows_2022_visualstudio_gcp
-  #         path: "windows2022/visual-studio-2022"
-  #         build_if_changed: "windows2022"
-  #         source_dirs: "windows2022"
-  #         packer_provider: "googlecompute"
-  #         context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  build_gcp_2022:
+    jobs:
+      - renovate-config-validator
+      - build_image_ansible:
+          name: windows_2022_visualstudio_gcp
+          path: "windows2022/visual-studio-2022"
+          build_if_changed: "windows2022"
+          source_dirs: "windows2022"
+          packer_provider: "googlecompute"
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
   #     - wait_for_image_family_update:
   #         name: wait_for_windows_2022_vs_gcp_canary_update
   #         executor: windows-2022-canary
