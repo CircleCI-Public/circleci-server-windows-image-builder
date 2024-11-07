@@ -62,6 +62,17 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
 * If you get any errors around not being able to find a default VPC, you will need to specify `vpc_id`, `subnet_id` (both for AWS) or `subnetwork` (for GCP) in `windows/visual-studio/packer.yaml`.
 
+### Ansible and Windows 2022
+
+For windows 2019 everything is configured using packer only. For windows 2022 ansible is used for most of it. The base ansible repo is [this](https://github.com/CircleCI-Public/ansible) and the branch you should is *test/install-vs-asadmin*. You want to fork this repo and that branch to work on your own image.
+You can customize the image as you want by changing the ansible playbooks. There are some important configurations to check:
+- **User password**: The password in the ansible task in the packer file must be the same there is in *group_vars/windows_configure_vars.yml* in the ansible repo
+- **Windows updates**: There are some updates that can be rejected when running windows update, you can enable or disable this, or add your own updates to reject. This is in the file *roles/windows/windows_updates/tasks/main.yml* on ansible repo.
+
+### GC_OLD jobs
+
+This jobs are commented by default, but you can uncomment if you prefer to run an scheduled validation for terminating packer instances.
+
 ## What the packer job in this build does
 * Sets up winrm.
 * Adds scripts for removing winrm when we are ready to clean up.
