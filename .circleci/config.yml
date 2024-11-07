@@ -11,7 +11,7 @@ executors:
 filters: &filters
   branches:
     only: 
-    - main
+    - master
 
 
 library:
