@@ -46,9 +46,9 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
 2. First, **configure `circleci-server-image-builder` context that contains credentials for GCE as env vars**. In the context, populate the env vars below:
 
-    * `GCE_SERVICE_CREDENTIALS_BASE64` (Base64-encoded service account key; the result of `base64 -w 0 your-key-file.json`)
-    * `CLOUDSDK_CORE_PROJECT` (Name of the project for which the image builder runs and the resulting image is saved)
-    * `GCE_DEFAULT_ZONE` (Zone where the image builder runs, e.g., `us-central1-a`, `asia-northeast1-a`.)
+    * `GCLOUD_SERVICE_KEY` (Base64-encoded service account key; the result of `base64 -w 0 your-key-file.json`)
+    * `GOOGLE_PROJECT_ID` (Name of the project for which the image builder runs and the resulting image is saved)
+    * `GOOGLE_COMPUTE_ZONE` (Zone where the image builder runs, e.g., `us-central1-a`, `asia-northeast1-a`.)
 
     [Our official document](https://circleci.com/docs/2.0/contexts/) would help you setting up contexts.
 
@@ -61,6 +61,17 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 ### Common troubleshooting
 
 * If you get any errors around not being able to find a default VPC, you will need to specify `vpc_id`, `subnet_id` (both for AWS) or `subnetwork` (for GCP) in `windows/visual-studio/packer.yaml`.
+
+### Ansible and Windows 2022
+
+For Windows 2019 everything is configured using packer only. For Windows 2022 ansible is used for most of it. The base ansible repo is publicly available at [https://github.com/CircleCI-Public/ansible](https://github.com/CircleCI-Public/ansible) and the branch you should use is [*test/install-vs-asadmin*](https://github.com/CircleCI-Public/ansible/tree/test/install-vs-asadmin). If you need to modify the ansible playbook, you can fork this repo and modify that branch in your fork. Remember to update the repo URL within the `build_image_ansible` job.
+You can customize the image as you want by changing the ansible playbooks. There are some important configurations to check:
+- **User password**: The password in the ansible task in the packer file must be the same there is in *group_vars/windows_configure_vars.yml* in the ansible repo
+- **Windows updates**: There are some updates that can be rejected when running windows update, you can enable or disable this, or add your own updates to reject. This is in the file *roles/windows/windows_updates/tasks/main.yml* on ansible repo.
+
+### GC_OLD jobs
+
+This jobs are commented by default, but you can uncomment if you prefer to run an scheduled validation for terminating packer instances.
 
 ## What the packer job in this build does
 * Sets up winrm.

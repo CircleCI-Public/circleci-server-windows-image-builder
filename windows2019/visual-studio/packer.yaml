@@ -32,8 +32,7 @@ builders:
       most_recent: true
     instance_type: "m5.2xlarge"
     ami_name: "windows-server-2019-vs2019-{{timestamp}}"
-    ami_groups: "all"
-    user_data_file: ./windows/visual-studio/user_data.ps1
+    user_data_file: ./windows2019/visual-studio/user_data.ps1
     communicator: "winrm"
     launch_block_device_mappings:
       - device_name: "/dev/sda1"
@@ -55,9 +54,10 @@ builders:
       circle_build_url: '{{ user "circle_build_url" }}'
 
   - type: googlecompute
+    network: packer
     image_name: windows-server-2019-vs2019-{{timestamp}}
     image_family: windows-server-2019-vs2019
-    source_image_family: windows-2019-for-containers
+    source_image_family: windows-2019
     # This used to be 80GB but visual studio consumed an addtional 30GB. So This
     # Was Doubled
     disk_size: 160
@@ -69,11 +69,7 @@ builders:
 
     project_id: '{{ user "project_id" }}'
     account_file: '{{ user "account_file" }}'
-    zone: '{{ user "gce_zone" }}'
-    subnetwork: default
-    tags:
-      - packer-winrm
-
+    zone: us-central1-a
     state_timeout: "30m"
 
     preemptible: false
@@ -102,26 +98,26 @@ builders:
 
 provisioners:
   - type: file
-    source: "windows/ImageHelpers"
+    source: "windows2019/ImageHelpers"
     destination: "{{user `helper_script_folder`}}"
 
   - type: file
-    source: "windows/validation-scripts"
+    source: "windows2019/validation-scripts"
     destination: "{{user `test_script_folder`}}"
 
   - type: file
-    source: "windows/shutdown-scripts"
+    source: "windows2019/shutdown-scripts"
     destination: "C:\\"
 
   - type: powershell
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
-      - "windows/provision-scripts/update-pwsh.ps1"
+      - "windows2019/provision-scripts/update-pwsh.ps1"
       # win update took more than 5 hour which is the limit for build run
-      # - "windows/provision-scripts/install-windows-updates.ps1"
-      - "windows/provision-scripts/cleanup-useless-defaults.ps1"
-      - "windows/provision-scripts/dscConfig.ps1"
+      # - "windows2019/provision-scripts/install-windows-updates.ps1"
+      - "windows2019/provision-scripts/cleanup-useless-defaults.ps1"
+      - "windows2019/provision-scripts/dscConfig.ps1"
 
   - type: windows-restart
 
@@ -129,10 +125,10 @@ provisioners:
     elevated_user: '{{ user "windows_user" }}'
     elevated_password: "{{.WinRMPassword}}"
     scripts:
-      - "windows/provision-scripts/dscConfig.ps1"
+      - "windows2019/provision-scripts/dscConfig.ps1"
       # Uncomment below to change the system locale to Japan (CP932)
       # システム ロケールを日本 (CP932) にする場合は下記を有効にしてください
-      # - "windows/provision-scripts/localize.ps1"
+      # - "windows2019/provision-scripts/localize.ps1"
 
   - type: windows-restart
 
@@ -145,16 +141,16 @@ provisioners:
     # environment_vars:
     #   - DOCKERHUB_REGISTRY_MIRROR={{ user "dockerhub_registry_mirror" }}
     scripts:
-      - "windows/provision-scripts/install-ssh.ps1"
-      - "windows/provision-scripts/update-pester.ps1"
-      - "windows/provision-scripts/enable-ec2launch.ps1"
-      - "windows/provision-scripts/enable-cleanup.ps1"
+      - "windows2019/provision-scripts/install-ssh.ps1"
+      - "windows2019/provision-scripts/update-pester.ps1"
+      - "windows2019/provision-scripts/enable-ec2launch.ps1"
+      - "windows2019/provision-scripts/enable-cleanup.ps1"
       # Uncomment below to enable Docker registry mirror
       # NOTE: this script requires the DOCKERHUB_REGISTRY_MIRROR environment variable
-      # - "windows/provision-scripts/configure-docker-daemon.ps1"
-      - "windows/provision-scripts/disable-windows-defender-scanner.ps1"
+      # - "windows2019/provision-scripts/configure-docker-daemon.ps1"
+      - "windows2019/provision-scripts/disable-windows-defender-scanner.ps1"
       # The following errors as windows update did not run
-      # - "windows/validation-scripts/run-pester.ps1"
+      # - "windows2019/validation-scripts/run-pester.ps1"
 
   - type: file
     source: "C:\\InstalledSoftware.md"

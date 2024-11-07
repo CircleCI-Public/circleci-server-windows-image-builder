@@ -1,19 +1,30 @@
 # We will continue using config version 2 for backward compatibility with server 2.x
-version: 2
+version: 2.1
+
+executors:
+  deploy:
+    docker:
+      - image: cimg/deploy:2024.11
+    shell: bash -eox pipefail
+
+# Modify this filters based on your requirements
+filters: &filters
+  branches:
+    only: 
+    - main
+
 
 library:
-  build_image: &build_image
+  build_image_2019: &build_image_2019
     docker:
       - image: hashicorp/packer:1.4.5
     steps:
       - run:
           name: Determine which platform we use
           command: |
-            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws" ] && [ ! -z "$AWS_DEFAULT_REGION" ]
-            then
+            if [ "${CIRCLE_JOB}" == "windows_visualstudio_aws_2019" ] && [ -n "$AWS_DEFAULT_REGION" ]; then
               echo 'export PROVIDER="amazon-ebs"' | tee -a $BASH_ENV
-            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp" ] && [ ! -z "$GCE_DEFAULT_ZONE" ]
-            then
+            elif [ "${CIRCLE_JOB}" == "windows_visualstudio_gcp_2019" ] && [ -n "$GOOGLE_COMPUTE_ZONE" ]; then
               echo 'export PROVIDER="googlecompute"' | tee -a $BASH_ENV
             else
               echo 'No provider available. Gracefully exiting.'
@@ -27,11 +38,8 @@ library:
       - run:
           name: install and configure gcloud sdk as needed
           command: |
-            if [ ! -z "${GCE_SERVICE_CREDENTIALS_BASE64}" ]
-            then
-              echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
-                | base64 -d \
-                > /tmp/gce-credentials.json
+            if [ -n "${GCLOUD_SERVICE_KEY}" ]; then
+              echo "${GCLOUD_SERVICE_KEY}" > /tmp/gce-credentials.json
 
               VERSION=267.0.0-linux-x86_64
               curl --silent --show-error --location --output /tmp/google-cloud-sdk-${VERSION}.tar.gz \
@@ -82,16 +90,16 @@ library:
               } || packer build \
               -machine-readable \
               --only "${PROVIDER}" \
-              --var project_id="${CLOUDSDK_CORE_PROJECT}" \
+              --var project_id="${GOOGLE_PROJECT_ID}" \
               --var account_file=/tmp/gce-credentials.json \
-              --var gce_zone="${GCE_DEFAULT_ZONE}" \
+              --var gce_zone="${GOOGLE_COMPUTE_ZONE}" \
               --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
               --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
-              --var ami_region="${AWS_DEFAULT_REGION}" \
+              --var ami_region="us-east-1" \
               --var windows_user="${WINDOWS_USER}" \
               --var test_results_path="/tmp/results/test-results.xml" \
               ${SOURCE_IMAGE_VAR} \
-              windows/visual-studio/packer.json | tee /tmp/artifacts/image-build.log
+              windows2019/visual-studio/packer.json | tee /tmp/artifacts/image-build.log
       - run:
           name: Summarize results
           command: |
@@ -120,96 +128,479 @@ library:
       - store_artifacts:
           path: /tmp/artifacts
 
+commands:
+  check_source_paths:
+    parameters:
+      source_dirs:
+        type: string
+        description: |
+          Only build this image if files within this path have changed. This is
+          similar to `build_if_changed` but that param checks the git hash vs
+          images already built. This one purely relies on files from the most
+          recent commit. The string is formatted like PATH, filepaths separated
+          by semicolons.
+    steps:
+      - run:
+          name: "Continue image job only if the correct paths were modified"
+          command: |
+            CHANGE="false"
+
+            if [[ $CIRCLE_BRANCH != "main" ]]; then
+                for i in $(ls -lR << parameters.source_dirs >> | awk '{print $9}'); do
+                  git diff --quiet HEAD main -- "<< parameters.source_dirs >>/${i}" || CHANGE="true"
+                  echo $CHANGE
+                done
+            fi
+
+            if [[ $CHANGE != "true" ]] && [[ $CIRCLE_BRANCH != "main" ]]; then
+              circleci step halt
+            fi
+
+  generate_gce_credentials:
+    description: "Decodes and saves GCE credentials to a json file"
+    parameters:
+      base64_gce_credentials:
+        type: env_var_name
+        default: GCLOUD_SERVICE_KEY
+      output_dir:
+        type: string
+        default: /tmp
+    steps:
+      - run:
+          name: generate credentials
+          command: |
+            echo "${<< parameters.base64_gce_credentials >>}" > <<parameters.output_dir>>/gce-credentials.json
+          shell: bash
+
+  gcloud_sdk:
+    parameters:
+      key_file:
+        type: string
+    steps:
+      - run:
+          name: install and configure gcloud sdk
+          command: |
+            VERSION=462.0.1-linux-x86_64
+            curl --silent --show-error --location --output /tmp/google-cloud-sdk-${VERSION}.tar.gz \
+            "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-sdk-462.0.1-linux-x86_64.tar.gz"
+
+            echo "cd7f8e7ec0197a200bdf5da0cf85e53b1583b6d18df4243c4fa81c553a524603  /tmp/google-cloud-sdk-${VERSION}.tar.gz" | sha256sum -c -
+
+            tar xf /tmp/google-cloud-sdk-${VERSION}.tar.gz
+
+            ./google-cloud-sdk/bin/gcloud auth activate-service-account --key-file=<< parameters.key_file >>
+
+  ensure_path:
+    description: "Ensures that the provided path exists"
+    parameters:
+      path:
+        type: string
+    steps:
+      - run:
+          name: ensure << parameters.path >> exists
+          command: mkdir -p << parameters.path >>
+
+  yaml_to_json_ansible:
+    description: "Uses pyyaml to convert a yaml file to json"
+    parameters:
+      yaml_file:
+        type: string
+      json_file:
+        type: string
+    steps:
+      - run:
+          name: install pyyaml
+          command: pip3 install pyyaml
+      - run:
+          name: convert << parameters.yaml_file >> to << parameters.json_file >>
+          command: |
+            cat ./<< parameters.yaml_file >> \
+              | python3 -c 'import sys, yaml, json; y=yaml.safe_load(sys.stdin.read()); print(json.dumps(y))' \
+              > ./<< parameters.json_file >>
+
 jobs:
-  gc_old_ec2_instances:
+  # gc_old_ec2_instances:
+  #   docker:
+  #     - image: circleci/python:3.7
+  #   steps:
+  #     - run:
+  #         name: check that it should work for AWS
+  #         command: |
+  #           if [ -z "${AWS_ACCESS_KEY_ID}" ]; then
+  #             circleci-agent step halt
+  #           fi
+  #     - checkout
+  #     - run: sudo pip3 install awscli
+  #     - run: sudo apt-get update && sudo apt-get install jq
+  #     - run: scripts/gc-ec2-instances.sh
+
+  # gc_old_gce_instances:
+  #   docker:
+  #     - image: google/cloud-sdk:263.0.0-alpine
+  #   steps:
+  #     - run:
+  #         name: generate credentials or halt the job
+  #         command: |
+  #           if [ -n "${GCLOUD_SERVICE_KEY}" ]; then
+  #             echo "${GCLOUD_SERVICE_KEY}" > /tmp/gce-credentials.json
+  #           else
+  #             circleci-agent step halt
+  #           fi
+  #     - run: |
+  #         gcloud auth activate-service-account --key-file /tmp/gce-credentials.json
+  #         apk add --no-cache coreutils
+  #     - run:
+  #         name: Create GC script, then run it
+  #         command: |
+  #           cat \<<"EOF" > /usr/local/bin/run-gc
+  #           #!/bin/bash
+  #           #
+  #           # Stops any RUNNING packer VMs that are older than 48 hours. You can
+  #           # also pass a max age, in hours, for running VMs.
+  #           #
+  #           # IMPORTANT: Please be extremely cautious if editing this script as
+  #           # these instances are in the same project as our production VMs. A
+  #           # missing or incorrect filter could easily delete all existing VMs
+  #           # out from under us.
+  #           set -euo pipefail
+  #           MAX_AGE_HOURS=${1:-"48"}
+  #           DAYS_AGO=$(date -u -Iseconds --date="$MAX_AGE_HOURS hours ago")
+  #           gcloud compute instances list \
+  #             --filter="status=(RUNNING,TERMINATED) AND name~packer-.+ AND creationTimestamp < ${DAYS_AGO}" \
+  #             --project=${GOOGLE_PROJECT_ID} \
+  #             --format='csv[no-heading,separator=" "](name,zone)' > /tmp/instances.csv
+  #           while read name zone; do
+  #             gcloud compute instances delete \
+  #               --zone ${zone} \
+  #               --quiet \
+  #               $name
+  #           done < /tmp/instances.csv
+  #           EOF
+  #           chmod +x /usr/local/bin/run-gc
+
+  #           /usr/local/bin/run-gc
+
+  windows_visualstudio_gcp_2019: *build_image_2019
+
+  windows_visualstudio_aws_2019: *build_image_2019
+  
+  renovate-config-validator:
     docker:
-      - image: circleci/python:3.7
+      - image: renovate/renovate
     steps:
-      - run:
-          name: check that it should work for AWS
-          command: |
-            if [ ! -z "${AWS_ACCESS_KEY_ID}" ]
-            then
-              circleci-agent step halt
-            fi
       - checkout
-      - run: sudo pip3 install awscli
-      - run: sudo apt-get update && sudo apt-get install jq
-      - run: scripts/gc-ec2-instances.sh
+      - run: renovate-config-validator
 
-  gc_old_gce_instances:
-    docker:
-      - image: google/cloud-sdk:263.0.0-alpine
+  build_image_ansible:
+    executor: deploy
+    parameters:
+      packer_provider:
+        type: enum
+        enum: [ "googlecompute", "amazon-ebs" ]
+      path:
+        type: string
+      build_if_changed:
+        type: string
+        description: "Build if files under this path have changed since the last build"
+      branch:
+        type: string
+        description: ansible branch to build from
+        default: "main"
+      output_as:
+        type: string
+        default: ""
+        description: "An alias to describe the image that we are creating in this job. This is used by downstream jobs in the same workflow."
+      build_from:
+        type: string
+        default: ""
+        description: "An alias to describe the image that we are basing this one on. This should correspond to the output_as parameter used by some upstream job in the workflow."
+      vars:
+        type: string
+        default: ""
+        description: "Override additional vars during this packer build. Should be space-separated 'k=v' pairs."
+      image_group:
+        type: string
+        default: ""
+        description: Should be equivalent to "output_as" and also how we parse where manifest files go in the s3 bucket
+          the naming convention should be similar to `os-version-arch` or `os-variant-[version]` e.g "linux-2204-amd64",
+          "linux-android", or "linux-cuda-12"
+      image_name:
+        type: string
+        default: ""
+        description: "Equivalent to what we would submit as the name of an image in `machine-provisioner` e.g `ubuntu-2204`:<<tag>>"
+      image_tag:
+        type: string
+        default: ""
+        description: The tag that will be associated with the image being built. For example, an quarterly image for linux would be
+          "2023.07.1". This is inserted into the manfiest as a means for us to identify which generated image in AWS or GCP is associated
+          with what tag
+      playbook_file:
+        type: string
+        default: "ansible/windows-playbook.yml"
+        description: "Specify which playbook_file to use with ansible and overrides any other option"
+      gcp_source_image:
+        type: string
+        default: "ubuntu-2204-jammy-v20220810"
+        description: "Specify the source image and override any existing option"
+      ami_filter_name:
+        type: string
+        default: "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
+      ami_tag_key:
+        type: string
+        default: "circle_sha"
+        description: "Used for AWS source_ami_filter values. Specify a tag key to use if needed. The default is set to monorepo_content_sha"
+      ami_tag_value:
+        type: string
+        default: ""
+        description: "Used for AWS source_ami_filter values Specify a circlei_sha to find an image.
+          This ID is what we capture as the unique AMI ID"
+      skip_create_ami:
+        type: boolean
+        default: false
+        description: "Used for skipping AWS image creation. mainly for testing"
+      skip_create_image:
+        type: boolean
+        default: false
+        description: "Used for skipping GCP image creation. mainly for testing purposes"
+      source_dirs:
+        type: string
+        description: |
+          Only build this image if files within this path have changed. This is
+          similar to `build_if_changed` but that param checks the git hash vs
+          images already built. This one purely relies on files from the most
+          recent commit. The string is formatted like PATH, filepaths separated
+          by semicolons.
     steps:
+      - checkout
+      - check_source_paths:
+          source_dirs: << parameters.source_dirs >>
+      - generate_gce_credentials
+      - run: sudo apt-get update
+      - run: pip install awscli
       - run:
-          name: generate credentials or halt the job
+          # Change the repository here if you are using a fork of ansible repo
+          # You can change the branch here or keep using the parameter
+          name: "Clone in Ansible Playbook"
+          command: git clone --branch << parameters.branch >> https://github.com/CircleCI-Public/ansible.git
+      - run:
+          name: "Install ansible windows libs "
           command: |
-            if [ ! -z "${GCE_SERVICE_CREDENTIALS_BASE64}" ]
-            then
-              echo "${GCE_SERVICE_CREDENTIALS_BASE64}" \
-                | base64 -d \
-                > /tmp/gce-credentials.json
-            else
-              circleci-agent step halt
+            for i in {1..5}; do
+              ansible-galaxy collection install ansible.windows && break || sleep 5;
+            done
+      - run:
+          name: "Install ansible community windows libs"
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy collection install community.windows && break || sleep 5;
+            done
+      - run:
+          name: 'Install ansible community iptables_persistent'
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy install chmduquesne.iptables_persistent && break || sleep 5;
+            done
+      - run:
+          name: 'Install ansible community.general'
+          command: |
+            for i in {1..5}; do
+              ansible-galaxy collection install community.general && break || sleep 5;
+            done
+      - run:
+          name: "Install pywinrm"
+          command: pip install "pywinrm>=0.3.0"
+      - run:
+          name: "Display packer version"
+          command: packer --version
+      - run:
+          name: "Install Packer"
+          command: |
+            # Install older version of packer
+            export PACKER_VER=1.8.5
+            wget "https://releases.hashicorp.com/packer/${PACKER_VER}/packer_${PACKER_VER}_linux_amd64.zip" -O packer.zip
+            unzip packer.zip
+            rm packer.zip
+            sudo mv packer /usr/local/bin
+      - run:
+          name: "Display packer version"
+          command: packer --version
+      - attach_workspace:
+          at: /tmp/workspace
+      - when:
+          condition:
+            equal: ["googlecompute", <<parameters.packer_provider>>]
+          steps:
+            - gcloud_sdk:
+                key_file: "/tmp/gce-credentials.json"
+      - ensure_path:
+          path: "/tmp/artifacts/"
+      - yaml_to_json_ansible:
+          yaml_file: "<< parameters.path >>/packer.yaml"
+          json_file: "<< parameters.path >>/packer.json"
+      - run: mkdir /tmp/results
+      - run:
+          name: Build images
+          no_output_timeout: 120m
+          environment:
+            # The AMI can take a very long time to be ready. These env
+            # vars make packer wait 2 hours for this to happen before
+            # giving up.
+            AWS_MAX_ATTEMPTS: 180
+            AWS_POLL_DELAY_SECONDS: 90
+          command: |
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha << parameters.build_if_changed >>)"
+            if [[ "<< parameters.build_from >>" ]]; then
+              echo Fetching the output image of << parameters.build_from >>
+              SOURCE_IMAGE=$(cat /tmp/workspace/<< parameters.build_from >>)
+              echo Using $SOURCE_IMAGE as the base image
+              SOURCE_IMAGE_VAR="--var source_image=$SOURCE_IMAGE"
             fi
-      - run: |
-          gcloud auth activate-service-account --key-file /tmp/gce-credentials.json
-          apk add --no-cache coreutils
+            [[ $CIRCLE_BRANCH != main ]] && IMAGE_FAMILY_SUFFIX="-dev"
+
+            case << parameters.packer_provider >> in
+              googlecompute)
+                WINDOWS_USER="circleci_packer"
+                ;;
+              amazon-ebs)
+                WINDOWS_USER="Administrator"
+                ;;
+              *)
+                echo "Unrecognized packer_provider value: << parameters.packer_provider >>."
+                exit 1
+                ;;
+            esac
+
+            ./scripts/get_last_image << parameters.packer_provider >> "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}" && {
+                echo "<< parameters.packer_provider >> image with monorepo_content_sha = ${MONOREPO_CONTENT_SHA} and circle_job_name = ${CIRCLE_JOB} already exists. Skipping build"
+              } || packer build \
+              -machine-readable \
+              --only << parameters.packer_provider >> \
+              --var project_id=${GOOGLE_PROJECT_ID} \
+              --var account_file=/tmp/gce-credentials.json \
+              --var monorepo_content_sha="${MONOREPO_CONTENT_SHA}" \
+              --var image_family_suffix="${IMAGE_FAMILY_SUFFIX}" \
+              --var ami_region="us-east-1" \
+              --var windows_user="${WINDOWS_USER}" \
+              --var test_results_path="/tmp/results/test-results.xml" \
+              --var playbook_file="<< parameters.playbook_file >>" \
+              --var source_image="<< parameters.gcp_source_image >>" \
+              --var ami_filter_name=<< parameters.ami_filter_name >> \
+              --var ami_tag_key="<< parameters.ami_tag_key >>" \
+              --var ami_tag_value="<< parameters.ami_tag_value >>" \
+              --var skip_create_ami="<< parameters.skip_create_ami >>" \
+              --var skip_create_image="<< parameters.skip_create_image >>" \
+              ${SOURCE_IMAGE_VAR} \
+              << parameters.vars >> \
+              << parameters.path >>/packer.json | tee /tmp/artifacts/<< parameters.packer_provider >>-build.log
       - run:
-          name: Create GC script, then run it
+          name: Summarize results
           command: |
-            cat <<"EOF" > /usr/local/bin/run-gc
-            #!/bin/bash
-            #
-            # Stops any RUNNING packer VMs that are older than 48 hours. You can
-            # also pass a max age, in hours, for running VMs.
-            #
-            # IMPORTANT: Please be extremely cautious if editing this script as
-            # these instances are in the same project as our production VMs. A
-            # missing or incorrect filter could easily delete all existing VMs
-            # out from under us.
-            set -euo pipefail
-            MAX_AGE_HOURS=${1:-"48"}
-            DAYS_AGO=$(date -u -Iseconds --date="$MAX_AGE_HOURS hours ago")
-            gcloud compute instances list \
-              --filter="status=(RUNNING,TERMINATED) AND name~packer-.+ AND creationTimestamp < ${DAYS_AGO}" \
-              --project=${CLOUDSDK_CORE_PROJECT} \
-              --format='csv[no-heading,separator=" "](name,zone)' > /tmp/instances.csv
-            while read name zone; do
-              gcloud compute instances delete \
-                --zone ${zone} \
-                --quiet \
-                $name
-            done < /tmp/instances.csv
-            EOF
-            chmod +x /usr/local/bin/run-gc
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha << parameters.build_if_changed >>)"
+            BUILD_LOG_PATH="/tmp/artifacts/<< parameters.packer_provider >>-build.log"
+            if [[ -f $BUILD_LOG_PATH ]]; then
+              IMAGE_NAME=$(grep 'artifact,0,id' "${BUILD_LOG_PATH}" | cut -d, -f6 | cut -d: -f2 || echo '')
+              echo Recording just-built image $IMAGE_NAME as the output of this job
+            else
+              IMAGE_NAME=$(./scripts/get_last_image << parameters.packer_provider >> "${MONOREPO_CONTENT_SHA}" "${CIRCLE_JOB}")
+              echo Nothing to build, recording previously-built image $IMAGE_NAME as the output of this job
+            fi
 
-            /usr/local/bin/run-gc
+            echo "Image ${IMAGE_NAME} is the latest image with content SHA ${MONOREPO_CONTENT_SHA}."
 
-  windows_visualstudio_gcp: *build_image
+            if [[ -n "<< parameters.output_as >>" ]]; then
+              echo $IMAGE_NAME | tee /tmp/artifacts/<< parameters.output_as >>
+            else
+              echo "output_as orb parameter is not set. $IMAGE_NAME will not be recorded as the output of this job."
+            fi
+      - run:
+          name: Copy image to regions
+          command: |
+            if [[ $CIRCLE_BRANCH == main ]]; then
+              if [[ << parameters.packer_provider >> == "amazon-ebs" ]]; then
+                ./scripts/copy-ami-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB} us-east-1
+              elif [[ << parameters.packer_provider >> == "googlecompute" ]]; then
+                ./scripts/copy-gce-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB}
+              else
+                echo 'Image copying skipped, unknown packer provider: << parameters.packer_provider >>'
+              fi
+            else
+              echo 'Branch is not main. Copying will be skipped.'
+            fi
+      - run:
+          name: Copy down manifest and build URL
+          command: |
+            cp ansible/manifest/software.json /tmp/artifacts/manifest
+            echo "export PARAM_BUILD_URL=${CIRCLE_BUILD_URL}" >> /tmp/artifacts/build_url
 
-  windows_visualstudio_aws: *build_image
+      - persist_to_workspace:
+          root: /tmp/artifacts
+          paths:
+            - << parameters.output_as >>
+            - << parameters.packer_provider >>-build.log
+            - windows2022/software.yml
+            - build_url
+      - run:
+          name: save test results if there are any
+          command: |
+            if [[ -f /tmp/results/test-results.xml ]]; then
+              cp /tmp/results/test-results.xml /tmp/artifacts
+            fi
+
+      - store_test_results:
+          path: /tmp/results
+
+      - store_artifacts:
+          path: /tmp/artifacts
 
 workflows:
-  version: 2
-
-  build_all_images:
+  build_aws_2019:
     jobs:
-      - windows_visualstudio_gcp:
-          context: circleci-server-image-builder
-      - windows_visualstudio_aws:
-          context: circleci-server-image-builder
+      - windows_visualstudio_aws_2019:
+          context: CPE_ORBS_AWS
+          filters: *filters
 
-  daily:
+  build_gcp_2019:
     jobs:
-      - gc_old_gce_instances:
-          context: circleci-server-image-builder
-      - gc_old_ec2_instances:
-          context: circleci-server-image-builder
-    triggers:
-      - schedule:
-          cron: "17 12 * * *"
-          filters:
-            branches:
-              only:
-                - master
+      - windows_visualstudio_gcp_2019:
+          context: cpe-gcp
+          filters: *filters
+
+  build_gcp_2022:
+    jobs:
+      # - renovate-config-validator
+      - build_image_ansible:
+          filters: *filters
+          name: windows_2022_visualstudio_gcp
+          path: "windows2022/visual-studio-2022"
+          build_if_changed: "windows2022"
+          source_dirs: "windows2022"
+          packer_provider: "googlecompute"
+          context: [cpe-gcp, SLACK_NOTIFICATIONS_TEST]
+  build_aws_2022:
+    jobs:
+      # Uncomment this if you want to run renovate. This will update the ansible packages versions
+      # - renovate-config-validator
+      - build_image_ansible:
+          filters: *filters
+          name: windows_2022_visualstudio_aws
+          path: "windows2022/visual-studio-2022"
+          build_if_changed: "windows2022"
+          source_dirs: "windows2022"
+          packer_provider: "amazon-ebs"
+          branch: test/install-vs-asadmin
+          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+
+  # Uncomment this to run the instance termination cronjob
+  # daily:
+  #   jobs:
+  #     - gc_old_gce_instances:
+  #         context: cpe-gcp
+  #     - gc_old_ec2_instances:
+  #         context: CPE_ORBS_AWS
+  #   triggers:
+  #     - schedule:
+  #         cron: "17 12 * * *"
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
