@@ -151,17 +151,6 @@ provisioners:
     inline: |
       & 'C:/Program Files/Amazon/EC2Launch/ec2launch' sysprep
 
-  # Explicitly configure nuget.org feed source
-  # to resolve https://circleci.atlassian.net/browse/CPE-83.
-  # This fix should be removed once it is no longer needed.
-  # In the meantime, the feed URL will need to be updated if NuGet moves to a newer API version:
-  # https://docs.microsoft.com/en-us/nuget/reference/cli-reference/cli-ref-sources
-  - type: powershell
-    elevated_user: '{{ user "windows_user" }}'
-    elevated_password: "{{.WinRMPassword}}"
-    scripts:
-      - "windows2022/provision-scripts/temp-fix-nuget-restore-issue.ps1"
-
   - type: file
     source: "C:\\InstalledSoftware.md"
     destination: "/tmp/artifacts/Vs2022-Server2022-Readme.md"
