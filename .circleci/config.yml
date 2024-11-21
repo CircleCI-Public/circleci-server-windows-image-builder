@@ -588,7 +588,7 @@ workflows:
           source_dirs: "windows2022"
           packer_provider: "amazon-ebs"
           branch: test/install-vs-asadmin
-          context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
+          context: circleci-server-image-builder
 
   # Uncomment this to run the instance termination cronjob
   # daily:
