@@ -139,12 +139,17 @@ provisioners:
     elevated_password: "{{.WinRMPassword}}"
     scripts:
       - "windows2022/provision-scripts/install-ssh-2022.ps1"
-      - "windows2022/provision-scripts/enable-ec2launch.ps1"
       - "windows2022/provision-scripts/ssh-rsa-for-bitbucket.ps1"
       - "windows2022/provision-scripts/enable-cleanup.ps1"
       - "windows2022/provision-scripts/disable-windows-defender-scanner.ps1"
       - "windows2022/provision-scripts/ce-task.ps1"
       - "windows2022/provision-scripts/fixpath.ps1"
+
+  - type: powershell
+    elevated_user: '{{ user "windows_user" }}'
+    elevated_password: "{{.WinRMPassword}}"
+    inline: |
+      & 'C:/Program Files/Amazon/EC2Launch/ec2launch' sysprep
 
   # Explicitly configure nuget.org feed source
   # to resolve https://circleci.atlassian.net/browse/CPE-83.
