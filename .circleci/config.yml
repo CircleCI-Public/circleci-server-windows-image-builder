@@ -515,7 +515,7 @@ jobs:
       - run:
           name: Copy image to regions
           command: |
-            if [[ $CIRCLE_BRANCH == main ]]; then
+            if [[ $CIRCLE_BRANCH == master ]]; then
               if [[ << parameters.packer_provider >> == "amazon-ebs" ]]; then
                 ./scripts/copy-ami-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB} us-east-1
               elif [[ << parameters.packer_provider >> == "googlecompute" ]]; then
@@ -524,7 +524,7 @@ jobs:
                 echo 'Image copying skipped, unknown packer provider: << parameters.packer_provider >>'
               fi
             else
-              echo 'Branch is not main. Copying will be skipped.'
+              echo 'Branch is not master. Copying will be skipped.'
             fi
       - run:
           name: Copy down manifest and build URL
