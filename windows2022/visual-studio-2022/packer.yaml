@@ -150,18 +150,3 @@ provisioners:
     elevated_password: "{{.WinRMPassword}}"
     inline: |
       & 'C:/Program Files/Amazon/EC2Launch/ec2launch' sysprep
-
-  - type: file
-    source: "C:\\InstalledSoftware.md"
-    destination: "/tmp/artifacts/Vs2022-Server2022-Readme.md"
-    direction: "download"
-
-  # - type: file
-  #  source: "C:\\test-results.xml"
-  #  destination: "{{ user `test_results_path` }}"
-  #  direction: "download"
-
-  - type: file
-    source: "C:\\ProgramData\\chocolatey\\logs\\chocolatey.log"
-    destination: "/tmp/artifacts/chocolatey.log"
-    direction: "download"
