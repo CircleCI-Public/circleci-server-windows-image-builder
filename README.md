@@ -58,6 +58,11 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
 5. You will find your new Windows image ID at the end of the `summarize results` step in the job output.
 
+### Image Size
+
+By default the disk image is set to 160 GB, but it can be updated based on your requirements.
+In the packer.yml, update the *launch_block_device_mappings* block for AWS and *disk_size* value for GCP
+
 ### Common troubleshooting
 
 * If you get any errors around not being able to find a default VPC, you will need to specify `vpc_id`, `subnet_id` (both for AWS) or `subnetwork` (for GCP) in `windows/visual-studio/packer.yaml`.

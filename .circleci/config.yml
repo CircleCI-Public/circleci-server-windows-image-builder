@@ -517,8 +517,10 @@ jobs:
           command: |
             if [[ $CIRCLE_BRANCH == master ]]; then
               if [[ << parameters.packer_provider >> == "amazon-ebs" ]]; then
+                sudo chmod +x ./scripts/copy-ami-to-regions.sh
                 ./scripts/copy-ami-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB} us-east-1
               elif [[ << parameters.packer_provider >> == "googlecompute" ]]; then
+                sudo chmod +x ./scripts/copy-gce-to-regions.sh
                 ./scripts/copy-gce-to-regions.sh << parameters.build_if_changed >> ${CIRCLE_JOB}
               else
                 echo 'Image copying skipped, unknown packer provider: << parameters.packer_provider >>'
