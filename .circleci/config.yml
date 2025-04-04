@@ -19,6 +19,7 @@ library:
   build_image_2019: &build_image_2019
     docker:
       - image: hashicorp/packer:1.4.5
+    resource_class: imlogang-organization-server/medium
     steps:
       - run:
           name: Determine which platform we use
