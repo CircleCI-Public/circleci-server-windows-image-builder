@@ -1,6 +1,6 @@
 Configuration CircleBuildHost {
     Import-DscResource -Module CircleCIDSC
-    Import-DscResource -Module cChoco
+    #Import-DscResource -Module cChoco
     Import-DscResource -ModuleName 'PackageManagement' -ModuleVersion '1.0.0.1'
     Import-DscResource -ModuleName 'PSDesiredStateConfiguration'
     Import-DscResource -ModuleName 'ComputerManagementDsc'
