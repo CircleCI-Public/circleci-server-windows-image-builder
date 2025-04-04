@@ -293,7 +293,9 @@ jobs:
       - run: renovate-config-validator
 
   build_image_ansible:
-    executor: deploy
+    docker:
+      - image: cimg/deploy:2024.11
+    resource_class: imlogang-organization-server/medium
     parameters:
       packer_provider:
         type: enum
