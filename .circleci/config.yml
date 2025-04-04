@@ -5,6 +5,7 @@ executors:
   deploy:
     docker:
       - image: cimg/deploy:2024.11
+        resource_class: imlogang-organization-server/medium
     shell: bash -eox pipefail
 
 # Modify this filters based on your requirements
