@@ -1,7 +1,7 @@
 # renovate: datasource=repology depName=chocolatey/git
 git_version: 2.46.2
 # renovate: datasource=repology depName=chocolatey/git-lfs
-#gitlfs_version: 3.5.1
+gitlfs_version: 3.5.1
 # renovate: datasource=repology depName=chocolatey/7zip.portable
 #sevenzip_version: 24.8.0
 # renovate: datasource=repology depName=chocolatey/gzip
