@@ -13,31 +13,22 @@ Configuration CircleBuildHost {
         Script InstallBash {
             SetScript = {
                 # Create directory for bash
-                $bashDir = "C:\bash"
+                $bashDir = "C:\winbash"
                 if (-not (Test-Path $bashDir)) {
                     New-Item -Path $bashDir -ItemType Directory -Force
                 }
                 
-                # Download a standalone bash executable
-                # We'll use a minimal bash from Git for Windows
-                $zipPath = "$env:TEMP\git-minimal.zip"
-                Write-Verbose "Downloading minimal Git for Windows (for bash.exe)..."
-                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/MinGit-2.39.0-64-bit.zip" -OutFile $zipPath
+                # Download win-bash
+                $zipPath = "$env:TEMP\win-bash.zip"
+                Write-Verbose "Downloading win-bash..."
+                Invoke-WebRequest -Uri "https://sourceforge.net/projects/win-bash/files/shell-complete/latest/shell-complete.zip/download" -OutFile $zipPath
                 
                 # Extract the ZIP
-                Write-Verbose "Extracting bash.exe and dependencies..."
-                Expand-Archive -Path $zipPath -DestinationPath "$env:TEMP\git-minimal" -Force
-                
-                # Copy bash.exe and its dependencies
-                if (Test-Path "$env:TEMP\git-minimal\usr\bin\bash.exe") {
-                    Copy-Item "$env:TEMP\git-minimal\usr\bin\bash.exe" -Destination "$bashDir\bash.exe" -Force
-                    # Copy potential dependencies (DLLs)
-                    Copy-Item "$env:TEMP\git-minimal\usr\bin\*.dll" -Destination $bashDir -Force -ErrorAction SilentlyContinue
-                }
+                Write-Verbose "Extracting win-bash..."
+                Expand-Archive -Path $zipPath -DestinationPath $bashDir -Force
                 
                 # Clean up
                 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
-                Remove-Item "$env:TEMP\git-minimal" -Recurse -Force -ErrorAction SilentlyContinue
                 
                 # Add to PATH if not already there
                 $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
@@ -48,7 +39,7 @@ Configuration CircleBuildHost {
                 # Make bash.exe available in the current session 
                 $env:Path = "$env:Path;$bashDir"
                 
-                Write-Verbose "Bash installation completed at $bashDir\bash.exe"
+                Write-Verbose "win-bash installation completed at $bashDir"
             }
             TestScript = {
                 try {
