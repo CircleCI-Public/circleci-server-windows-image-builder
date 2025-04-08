@@ -27,21 +27,50 @@ Configuration CircleBuildHost {
                 Write-Verbose "Extracting win-bash..."
                 Expand-Archive -Path $zipPath -DestinationPath $bashDir -Force
                 
+                # Verify bash.exe exists and locate it
+                $bashExe = Get-ChildItem -Path $bashDir -Filter "bash.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                if ($bashExe) {
+                    $bashExePath = $bashExe.DirectoryName
+                    Write-Verbose "Found bash.exe at: $($bashExe.FullName)"
+                } else {
+                    Write-Error "bash.exe not found in extracted files!"
+                    throw "bash.exe not found"
+                }
+                
                 # Clean up
                 Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
                 
-                # Add to PATH if not already there
-                $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
-                if ($envPath -notlike "*$bashDir*") {
-                    [Environment]::SetEnvironmentVariable("PATH", "$envPath;$bashDir", "Machine")
+                # Add to MACHINE PATH permanently
+                $machinePathKey = 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager\Environment'
+                $oldMachinePath = (Get-ItemProperty -Path $machinePathKey -Name PATH).Path
+                if ($oldMachinePath -notlike "*$bashExePath*") {
+                    $newMachinePath = "$oldMachinePath;$bashExePath"
+                    Set-ItemProperty -Path $machinePathKey -Name PATH -Value $newMachinePath
+                    Write-Verbose "Added $bashExePath to machine PATH"
                 }
                 
-                # Make bash.exe available in the current session 
-                $env:Path = "$env:Path;$bashDir"
+                # Also update current process PATH
+                $env:Path = "$env:Path;$bashExePath"
                 
-                Write-Verbose "win-bash installation completed at $bashDir"
+                # Create a symbolic link in a location that's definitely in PATH
+                $windowsDir = "$env:windir\System32"
+                if (-not (Test-Path "$windowsDir\bash.exe")) {
+                    Copy-Item -Path $bashExe.FullName -Destination "$windowsDir\bash.exe" -Force
+                    Write-Verbose "Copied bash.exe to $windowsDir"
+                }
+                
+                # Force a PATH refresh for the current process
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
+                
+                Write-Verbose "bash.exe installation completed and added to PATH"
             }
             TestScript = {
+                # First check if it's in System32 (our backup approach)
+                if (Test-Path "$env:windir\System32\bash.exe") {
+                    return $true
+                }
+                
+                # Otherwise test if it's in PATH
                 try {
                     $null = Get-Command "bash.exe" -ErrorAction Stop
                     return $true
@@ -51,13 +80,14 @@ Configuration CircleBuildHost {
                 }
             }
             GetScript = {
+                $bashInSystem32 = Test-Path "$env:windir\System32\bash.exe"
                 try {
                     $bashCmd = Get-Command "bash.exe" -ErrorAction SilentlyContinue
-                    $bashPath = if ($bashCmd) { $bashCmd.Source } else { "Not found" }
-                    return @{ Result = "Bash: $bashPath" }
+                    $bashPath = if ($bashCmd) { $bashCmd.Source } else { "Not found in PATH" }
+                    return @{ Result = "Bash: $bashPath, In System32: $bashInSystem32" }
                 }
                 catch {
-                    return @{ Result = "Bash not installed" }
+                    return @{ Result = "Bash not installed or not in PATH. In System32: $bashInSystem32" }
                 }
             }
         }
