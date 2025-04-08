@@ -198,4 +198,3 @@ If (-not $(Test-Path -Path '.\CircleBuildHost')) {
 }
 Update-Paths
 Start-DscConfiguration -Path .\CircleBuildHost  -Wait -Force -Verbose
-
