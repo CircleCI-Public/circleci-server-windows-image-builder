@@ -10,17 +10,18 @@ Configuration CircleBuildHost {
         }
         CircleUsers "users" { }
         
-        # Install Git
         Script InstallGit {
             SetScript = {
                 $installerPath = "$env:TEMP\Git-Installer.exe"
                 # Download Git installer
                 Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/Git-2.39.0-64-bit.exe" -OutFile $installerPath
                 
-                # Install Git with all options specified directly in command line
-                # Use /SILENT instead of /VERYSILENT to see some progress
-                # Specify PATH option directly
-                Start-Process -FilePath $installerPath -ArgumentList "/SILENT", "/NORESTART", "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs", "/PATHOPT=CmdTools" -Wait -NoNewWindow
+                # Install Git with Bash included
+                # We're changing the COMPONENTS and PATHOPT parameters to include Bash
+                Start-Process -FilePath $installerPath -ArgumentList "/SILENT", 
+                                                                   "/NORESTART", 
+                                                                   "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash",
+                                                                   "/PATHOPT=CmdAndBashTools" -Wait -NoNewWindow
                 
                 # Clean up
                 Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
@@ -34,7 +35,8 @@ Configuration CircleBuildHost {
             TestScript = {
                 try {
                     $gitVersion = (git --version 2>&1)
-                    return ($gitVersion -like "git version*")
+                    $bashExists = Test-Path "C:\Program Files\Git\bin\bash.exe"
+                    return ($gitVersion -like "git version*" -and $bashExists)
                 }
                 catch {
                     return $false
@@ -43,7 +45,8 @@ Configuration CircleBuildHost {
             GetScript = {
                 try {
                     $gitVersion = (git --version 2>&1)
-                    return @{ Result = $gitVersion }
+                    $bashPath = if (Test-Path "C:\Program Files\Git\bin\bash.exe") { "C:\Program Files\Git\bin\bash.exe" } else { "Not found" }
+                    return @{ Result = "$gitVersion, Bash: $bashPath" }
                 }
                 catch {
                     return @{ Result = "Git not installed" }
