@@ -14,21 +14,40 @@ Configuration CircleBuildHost {
         Script InstallGit {
             SetScript = {
                 $installerPath = "$env:TEMP\Git-Installer.exe"
+                # Download Git installer
                 Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/Git-2.39.0-64-bit.exe" -OutFile $installerPath
-                # Including GitAndUnixToolsOnPath option
-                Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT /NORESTART /COMPONENTS=`"icons,ext\reg\shellhere,assoc,assoc_sh,gitlfs,autoupdate`" /LOADINF=`"git.inf`"" -Wait
-                # Create a simple INF file to include GitAndUnixToolsOnPath
-                Set-Content -Path "git.inf" -Value "[Setup]`r`nPathOption=CmdTools"
-                Remove-Item $installerPath -Force
-                Remove-Item "git.inf" -Force
+                
+                # Install Git with all options specified directly in command line
+                # Use /SILENT instead of /VERYSILENT to see some progress
+                # Specify PATH option directly
+                Start-Process -FilePath $installerPath -ArgumentList "/SILENT", "/NORESTART", "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs", "/PATHOPT=CmdTools" -Wait -NoNewWindow
+                
+                # Clean up
+                Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+                
+                # Reload PATH to make git available in current session
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                
+                # Log success
+                Write-Verbose "Git installation completed"
             }
             TestScript = {
-                $gitPath = (Get-Command git -ErrorAction SilentlyContinue).Source
-                return ($null -ne $gitPath)
+                try {
+                    $gitVersion = (git --version 2>&1)
+                    return ($gitVersion -like "git version*")
+                }
+                catch {
+                    return $false
+                }
             }
             GetScript = {
-                $gitPath = (Get-Command git -ErrorAction SilentlyContinue).Source
-                return @{ Result = if ($null -ne $gitPath) { "Git is installed at: $gitPath" } else { "Git is not installed" } }
+                try {
+                    $gitVersion = (git --version 2>&1)
+                    return @{ Result = $gitVersion }
+                }
+                catch {
+                    return @{ Result = "Git not installed" }
+                }
             }
         }
         
