@@ -71,7 +71,7 @@ library:
             AWS_MAX_ATTEMPTS: 180
             AWS_POLL_DELAY_SECONDS: 60
           command: |
-            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows)"
+            MONOREPO_CONTENT_SHA="$(./scripts/get_content_sha windows2019)"
             [[ $CIRCLE_BRANCH != master ]] && IMAGE_FAMILY_SUFFIX="-dev"
 
             case "${PROVIDER}" in
