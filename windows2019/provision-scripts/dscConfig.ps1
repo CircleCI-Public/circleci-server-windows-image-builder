@@ -70,7 +70,47 @@ Configuration CircleBuildHost {
                 }
             }
         }
-        
+
+        Script InstallGit {
+            SetScript = {
+                $installerPath = "$env:TEMP\Git-Installer.exe"
+                # Download Git installer
+                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/Git-2.39.0-64-bit.exe" -OutFile $installerPath
+                
+                # Install Git with all options specified directly in command line
+                Start-Process -FilePath $installerPath -ArgumentList "/SILENT", 
+                                                              "/NORESTART", 
+                                                              "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs",
+                                                              "/PATHOPT=CmdTools" -Wait -NoNewWindow
+                
+                # Clean up
+                Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+                
+                # Reload PATH to make git available in current session
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                
+                # Log success
+                Write-Verbose "Git installation completed"
+            }
+            TestScript = {
+                try {
+                    $gitVersion = (git --version 2>&1)
+                    return ($gitVersion -like "git version*")
+                }
+                catch {
+                    return $false
+                }
+            }
+            GetScript = {
+                try {
+                    $gitVersion = (git --version 2>&1)
+                    return @{ Result = $gitVersion }
+                }
+                catch {
+                    return @{ Result = "Git not installed" }
+                }
+            }
+        }
         # Install Git LFS
         Script InstallGitLFS {
             SetScript = {
