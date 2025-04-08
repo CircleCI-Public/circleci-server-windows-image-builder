@@ -141,7 +141,7 @@ provisioners:
     # environment_vars:
     #   - DOCKERHUB_REGISTRY_MIRROR={{ user "dockerhub_registry_mirror" }}
     scripts:
-      - "windows2019/provision-scripts/install-ssh.ps1"
+      #- "windows2019/provision-scripts/install-ssh.ps1"
       - "windows2019/provision-scripts/update-pester.ps1"
       - "windows2019/provision-scripts/enable-ec2launch.ps1"
       - "windows2019/provision-scripts/enable-cleanup.ps1"
