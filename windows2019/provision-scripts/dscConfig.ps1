@@ -10,33 +10,50 @@ Configuration CircleBuildHost {
         }
         CircleUsers "users" { }
         
-        Script InstallGit {
+        Script InstallBash {
             SetScript = {
-                $installerPath = "$env:TEMP\Git-Installer.exe"
-                # Download Git installer
-                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/Git-2.39.0-64-bit.exe" -OutFile $installerPath
+                # Create directory for bash
+                $bashDir = "C:\bash"
+                if (-not (Test-Path $bashDir)) {
+                    New-Item -Path $bashDir -ItemType Directory -Force
+                }
                 
-                # Install Git with Bash included
-                # We're changing the COMPONENTS and PATHOPT parameters to include Bash
-                Start-Process -FilePath $installerPath -ArgumentList "/SILENT", 
-                                                                   "/NORESTART", 
-                                                                   "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash",
-                                                                   "/PATHOPT=CmdAndBashTools" -Wait -NoNewWindow
+                # Download a standalone bash executable
+                # We'll use a minimal bash from Git for Windows
+                $zipPath = "$env:TEMP\git-minimal.zip"
+                Write-Verbose "Downloading minimal Git for Windows (for bash.exe)..."
+                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/MinGit-2.39.0-64-bit.zip" -OutFile $zipPath
+                
+                # Extract the ZIP
+                Write-Verbose "Extracting bash.exe and dependencies..."
+                Expand-Archive -Path $zipPath -DestinationPath "$env:TEMP\git-minimal" -Force
+                
+                # Copy bash.exe and its dependencies
+                if (Test-Path "$env:TEMP\git-minimal\usr\bin\bash.exe") {
+                    Copy-Item "$env:TEMP\git-minimal\usr\bin\bash.exe" -Destination "$bashDir\bash.exe" -Force
+                    # Copy potential dependencies (DLLs)
+                    Copy-Item "$env:TEMP\git-minimal\usr\bin\*.dll" -Destination $bashDir -Force -ErrorAction SilentlyContinue
+                }
                 
                 # Clean up
-                Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+                Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+                Remove-Item "$env:TEMP\git-minimal" -Recurse -Force -ErrorAction SilentlyContinue
                 
-                # Reload PATH to make git available in current session
-                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                # Add to PATH if not already there
+                $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+                if ($envPath -notlike "*$bashDir*") {
+                    [Environment]::SetEnvironmentVariable("PATH", "$envPath;$bashDir", "Machine")
+                }
                 
-                # Log success
-                Write-Verbose "Git installation completed"
+                # Make bash.exe available in the current session 
+                $env:Path = "$env:Path;$bashDir"
+                
+                Write-Verbose "Bash installation completed at $bashDir\bash.exe"
             }
             TestScript = {
                 try {
-                    $gitVersion = (git --version 2>&1)
-                    $bashExists = Test-Path "C:\Program Files\Git\bin\bash.exe"
-                    return ($gitVersion -like "git version*" -and $bashExists)
+                    $null = Get-Command "bash.exe" -ErrorAction Stop
+                    return $true
                 }
                 catch {
                     return $false
@@ -44,12 +61,12 @@ Configuration CircleBuildHost {
             }
             GetScript = {
                 try {
-                    $gitVersion = (git --version 2>&1)
-                    $bashPath = if (Test-Path "C:\Program Files\Git\bin\bash.exe") { "C:\Program Files\Git\bin\bash.exe" } else { "Not found" }
-                    return @{ Result = "$gitVersion, Bash: $bashPath" }
+                    $bashCmd = Get-Command "bash.exe" -ErrorAction SilentlyContinue
+                    $bashPath = if ($bashCmd) { $bashCmd.Source } else { "Not found" }
+                    return @{ Result = "Bash: $bashPath" }
                 }
                 catch {
-                    return @{ Result = "Git not installed" }
+                    return @{ Result = "Bash not installed" }
                 }
             }
         }
