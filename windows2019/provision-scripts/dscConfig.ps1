@@ -125,7 +125,7 @@ Configuration CircleBuildHost {
                 $gitLfsPath = (Get-Command git-lfs -ErrorAction SilentlyContinue).Source
                 return @{ Result = if ($null -ne $gitLfsPath) { "Git LFS is installed at: $gitLfsPath" } else { "Git LFS is not installed" } }
             }
-            DependsOn = "[Script]InstallGit"
+            DependsOn = "[Script]InstallGitWithBash"
         }
         
         # Install 7zip portable
