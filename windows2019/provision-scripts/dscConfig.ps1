@@ -10,52 +10,52 @@ Configuration CircleBuildHost {
         }
         CircleUsers "users" { }
         
-        Script InstallBashDirectly {
-            SetScript = {
-                # Download Git for Windows portable
-                Write-Host "Downloading Bash Hopefully"
-                $portableGitPath = "$env:TEMP\PortableGit.exe"
-                Write-Verbose "Downloading Git for Windows portable..."
-                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/PortableGit-2.39.0-64-bit.7z.exe" -OutFile $portableGitPath
+        # Script InstallBashDirectly {
+        #     SetScript = {
+        #         # Download Git for Windows portable
+        #         Write-Host "Downloading Bash Hopefully"
+        #         $portableGitPath = "$env:TEMP\PortableGit.exe"
+        #         Write-Verbose "Downloading Git for Windows portable..."
+        #         Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/PortableGit-2.39.0-64-bit.7z.exe" -OutFile $portableGitPath
                 
-                # Create a directory for extraction
-                $extractPath = "C:\GitPortable"
-                if (-not (Test-Path $extractPath)) {
-                    New-Item -Path $extractPath -ItemType Directory -Force
-                }
+        #         # Create a directory for extraction
+        #         $extractPath = "C:\GitPortable"
+        #         if (-not (Test-Path $extractPath)) {
+        #             New-Item -Path $extractPath -ItemType Directory -Force
+        #         }
                 
-                # Extract the portable Git (self-extracting 7z)
-                Write-Verbose "Extracting portable Git..."
-                Start-Process -FilePath $portableGitPath -ArgumentList "-y", "-o$extractPath" -Wait -NoNewWindow
+        #         # Extract the portable Git (self-extracting 7z)
+        #         Write-Verbose "Extracting portable Git..."
+        #         Start-Process -FilePath $portableGitPath -ArgumentList "-y", "-o$extractPath" -Wait -NoNewWindow
                 
-                # Copy bash.exe directly to System32
-                Write-Verbose "Copying bash.exe to System32..."
-                $bashSource = "$extractPath\bin\bash.exe"
-                if (Test-Path $bashSource) {
-                    # Also copy necessary DLLs
-                    Copy-Item "$extractPath\bin\*.dll" -Destination "$env:windir\System32\" -Force -ErrorAction SilentlyContinue
-                    Copy-Item $bashSource -Destination "$env:windir\System32\bash.exe" -Force
-                } else {
-                    Write-Error "bash.exe not found in extracted Git portable!"
-                }
+        #         # Copy bash.exe directly to System32
+        #         Write-Verbose "Copying bash.exe to System32..."
+        #         $bashSource = "$extractPath\bin\bash.exe"
+        #         if (Test-Path $bashSource) {
+        #             # Also copy necessary DLLs
+        #             Copy-Item "$extractPath\bin\*.dll" -Destination "$env:windir\System32\" -Force -ErrorAction SilentlyContinue
+        #             Copy-Item $bashSource -Destination "$env:windir\System32\bash.exe" -Force
+        #         } else {
+        #             Write-Error "bash.exe not found in extracted Git portable!"
+        #         }
                 
-                # Clean up
-                Remove-Item $portableGitPath -Force -ErrorAction SilentlyContinue
+        #         # Clean up
+        #         Remove-Item $portableGitPath -Force -ErrorAction SilentlyContinue
                 
-                # Create a registry entry to force PATH refresh in all sessions
-                # This is more reliable than changing environment variables
-                New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Force | Out-Null
+        #         # Create a registry entry to force PATH refresh in all sessions
+        #         # This is more reliable than changing environment variables
+        #         New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Force | Out-Null
                 
-                Write-Verbose "Bash installation completed"
-            }
-            TestScript = {
-                return (Test-Path "$env:windir\System32\bash.exe")
-            }
-            GetScript = {
-                $exists = Test-Path "$env:windir\System32\bash.exe"
-                return @{ Result = if ($exists) { "bash.exe exists in System32" } else { "bash.exe not found in System32" } }
-            }
-        }
+        #         Write-Verbose "Bash installation completed"
+        #     }
+        #     TestScript = {
+        #         return (Test-Path "$env:windir\System32\bash.exe")
+        #     }
+        #     GetScript = {
+        #         $exists = Test-Path "$env:windir\System32\bash.exe"
+        #         return @{ Result = if ($exists) { "bash.exe exists in System32" } else { "bash.exe not found in System32" } }
+        #     }
+        # }
 
         Script InstallGit {
             SetScript = {
