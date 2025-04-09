@@ -57,59 +57,58 @@ Configuration CircleBuildHost {
         #     }
         # }
 
-        Script FindBash {
-            SetScript = {
-                # Use Write-Output for guaranteed logging
-                Write-Output "BASH_FINDER: Beginning search for bash.exe locations"
-                $bashPaths = @()
-                
-                # Check common locations
-                $locations = @(
-                    "C:\Program Files\Git\bin",
-                    "C:\Program Files\Git\usr\bin",
-                    "C:\Program Files\Git\mingw64\bin",
-                    "C:\Program Files (x86)\Git\bin",
-                    "C:\Program Files (x86)\Git\usr\bin"
-                )
-                
-                foreach ($location in $locations) {
-                    if (Test-Path "$location\bash.exe") {
-                        $bashPaths += "$location\bash.exe"
-                        Write-Output "BASH_FINDER_LOCATION: Found bash.exe at $location\bash.exe"
-                    } else {
-                        Write-Output "BASH_FINDER: No bash.exe at $location"
-                    }
-                }
-                
-                # Look through the entire Git directory recursively
-                Write-Output "BASH_FINDER: Starting recursive search in Git directory"
-                if (Test-Path "C:\Program Files\Git") {
-                    $foundBash = Get-ChildItem -Path "C:\Program Files\Git" -Filter "bash.exe" -Recurse -ErrorAction SilentlyContinue
-                    foreach ($bash in $foundBash) {
-                        $bashPaths += $bash.FullName
-                        Write-Output "BASH_FINDER_LOCATION: Found bash.exe at $($bash.FullName)"
-                    }
-                }
-                
-                # Print current PATH for debugging
-                Write-Output "BASH_FINDER_PATH: Current PATH is $env:Path"
-                
-                # Try Get-Command to see if it works now
-                try {
-                    $bashCmd = Get-Command "bash.exe" -ErrorAction Stop
-                    Write-Output "BASH_FINDER_SUCCESS: Get-Command found bash.exe at $($bashCmd.Source)"
-                } catch {
-                    Write-Output "BASH_FINDER_ERROR: Get-Command cannot find bash.exe. Error: $_"
-                }
-            }
-            TestScript = {
-                # Always run this script
-                return $false
-            }
-            GetScript = {
-                return @{ Result = "Completed bash detection" }
-            }
-        }
+        Script InstallGitWithBash {
+             SetScript = {
+                 $installerPath = "$env:TEMP\Git-Installer.exe"
+                 Write-Verbose "Downloading Git for Windows (includes bash)..."
+                 Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0/Git-2.49.0-64-bit.exe" -OutFile $installerPath
+ 
+                 # Install Git with parameters that specifically include bash in PATH
+                 Write-Verbose "Installing Git with bash..."
+                 Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT", 
+                                                                    "/NORESTART", 
+                                                                    "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash", 
+                                                                    "/PATHOPT=CmdTools" -Wait -NoNewWindow
+ 
+                 # Clean up
+                 Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+ 
+                 # Explicitly add Git's bin and usr/bin to the PATH
+                 $gitBinPath = "C:\Program Files\Git\bin"
+                 $gitUsrBinPath = "C:\Program Files\Git\usr\bin"
+ 
+                 # Update system PATH
+                 $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+                 if ($envPath -notlike "*$gitBinPath*") {
+                     [Environment]::SetEnvironmentVariable("PATH", "$envPath;$gitBinPath;$gitUsrBinPath", "Machine")
+                 }
+ 
+                 # Update current session PATH
+                 $env:Path = "$env:Path;$gitBinPath;$gitUsrBinPath"
+ 
+                 # Create a direct copy in System32 as a failsafe
+                 if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
+                     Copy-Item "C:\Program Files\Git\usr\bin\bash.exe" -Destination "$env:windir\System32\" -Force
+                     Write-Verbose "Copied bash.exe to System32 as a backup"
+                 }
+             }
+             TestScript = {
+                 # Check for bash in multiple locations
+                 if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
+                     return $true
+                 }
+                 return $false
+             }
+             GetScript = {
+                 $bashPath = if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") { 
+                     "C:\Program Files\Git\usr\bin\bash.exe" 
+                 } else { 
+                     "Not found" 
+                 }
+ 
+                 return @{ Result = "Bash is installed at: $bashPath" }
+             }
+         }
 
         Script FindBash {
             SetScript = {
