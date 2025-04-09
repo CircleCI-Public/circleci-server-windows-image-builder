@@ -95,20 +95,17 @@ Configuration CircleBuildHost {
         Script InstallGit {
             SetScript = {
                 $installerPath = "$env:TEMP\Git-Installer.exe"
-                # Download Git installer
                 Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/Git-2.39.0-64-bit.exe" -OutFile $installerPath
                 
-                # Install Git with all options specified directly in command line
+                # The "/COMPONENTS" parameter includes bash and "/PATHOPT=Cmd" puts Unix tools in PATH
                 Start-Process -FilePath $installerPath -ArgumentList "/SILENT", 
-                                                              "/NORESTART", 
-                                                              "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs",
-                                                              "/PATHOPT=CmdTools" -Wait -NoNewWindow
+                                                                   "/NORESTART", 
+                                                                   "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash,icons,ext,assoc", 
+                                                                   "/PATHOPT=Cmd" -Wait -NoNewWindow
                 
-                # Clean up
+                # Clean up and PATH refresh as before
                 Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-                
-                # Reload PATH to make git available in current session
-                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" 
                 
                 # Log success
                 Write-Verbose "Git installation completed"
