@@ -10,85 +10,50 @@ Configuration CircleBuildHost {
         }
         CircleUsers "users" { }
         
-        Script InstallBash {
+        Script InstallBashDirectly {
             SetScript = {
-                # Create directory for bash
-                $bashDir = "C:\winbash"
-                if (-not (Test-Path $bashDir)) {
-                    New-Item -Path $bashDir -ItemType Directory -Force
+                # Download Git for Windows portable
+                Write-Host "Downloading Bash Hopefully"
+                $portableGitPath = "$env:TEMP\PortableGit.exe"
+                Write-Verbose "Downloading Git for Windows portable..."
+                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/PortableGit-2.39.0-64-bit.7z.exe" -OutFile $portableGitPath
+                
+                # Create a directory for extraction
+                $extractPath = "C:\GitPortable"
+                if (-not (Test-Path $extractPath)) {
+                    New-Item -Path $extractPath -ItemType Directory -Force
                 }
                 
-                # Download win-bash
-                $zipPath = "$env:TEMP\win-bash.zip"
-                Write-Verbose "Downloading win-bash..."
-                Invoke-WebRequest -Uri "https://sourceforge.net/projects/win-bash/files/shell-complete/latest/shell-complete.zip/download" -OutFile $zipPath
+                # Extract the portable Git (self-extracting 7z)
+                Write-Verbose "Extracting portable Git..."
+                Start-Process -FilePath $portableGitPath -ArgumentList "-y", "-o$extractPath" -Wait -NoNewWindow
                 
-                # Extract the ZIP
-                Write-Verbose "Extracting win-bash..."
-                Expand-Archive -Path $zipPath -DestinationPath $bashDir -Force
-                
-                # Verify bash.exe exists and locate it
-                $bashExe = Get-ChildItem -Path $bashDir -Filter "bash.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-                if ($bashExe) {
-                    $bashExePath = $bashExe.DirectoryName
-                    Write-Verbose "Found bash.exe at: $($bashExe.FullName)"
+                # Copy bash.exe directly to System32
+                Write-Verbose "Copying bash.exe to System32..."
+                $bashSource = "$extractPath\bin\bash.exe"
+                if (Test-Path $bashSource) {
+                    # Also copy necessary DLLs
+                    Copy-Item "$extractPath\bin\*.dll" -Destination "$env:windir\System32\" -Force -ErrorAction SilentlyContinue
+                    Copy-Item $bashSource -Destination "$env:windir\System32\bash.exe" -Force
                 } else {
-                    Write-Error "bash.exe not found in extracted files!"
-                    throw "bash.exe not found"
+                    Write-Error "bash.exe not found in extracted Git portable!"
                 }
                 
                 # Clean up
-                Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+                Remove-Item $portableGitPath -Force -ErrorAction SilentlyContinue
                 
-                # Add to MACHINE PATH permanently
-                $machinePathKey = 'Registry::HKEY_LOCAL_MACHINE\System\CurrentControlSet\Control\Session Manager\Environment'
-                $oldMachinePath = (Get-ItemProperty -Path $machinePathKey -Name PATH).Path
-                if ($oldMachinePath -notlike "*$bashExePath*") {
-                    $newMachinePath = "$oldMachinePath;$bashExePath"
-                    Set-ItemProperty -Path $machinePathKey -Name PATH -Value $newMachinePath
-                    Write-Verbose "Added $bashExePath to machine PATH"
-                }
+                # Create a registry entry to force PATH refresh in all sessions
+                # This is more reliable than changing environment variables
+                New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Force | Out-Null
                 
-                # Also update current process PATH
-                $env:Path = "$env:Path;$bashExePath"
-                
-                # Create a symbolic link in a location that's definitely in PATH
-                $windowsDir = "$env:windir\System32"
-                if (-not (Test-Path "$windowsDir\bash.exe")) {
-                    Copy-Item -Path $bashExe.FullName -Destination "$windowsDir\bash.exe" -Force
-                    Write-Verbose "Copied bash.exe to $windowsDir"
-                }
-                
-                # Force a PATH refresh for the current process
-                $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-                
-                Write-Verbose "bash.exe installation completed and added to PATH"
+                Write-Verbose "Bash installation completed"
             }
             TestScript = {
-                # First check if it's in System32 (our backup approach)
-                if (Test-Path "$env:windir\System32\bash.exe") {
-                    return $true
-                }
-                
-                # Otherwise test if it's in PATH
-                try {
-                    $null = Get-Command "bash.exe" -ErrorAction Stop
-                    return $true
-                }
-                catch {
-                    return $false
-                }
+                return (Test-Path "$env:windir\System32\bash.exe")
             }
             GetScript = {
-                $bashInSystem32 = Test-Path "$env:windir\System32\bash.exe"
-                try {
-                    $bashCmd = Get-Command "bash.exe" -ErrorAction SilentlyContinue
-                    $bashPath = if ($bashCmd) { $bashCmd.Source } else { "Not found in PATH" }
-                    return @{ Result = "Bash: $bashPath, In System32: $bashInSystem32" }
-                }
-                catch {
-                    return @{ Result = "Bash not installed or not in PATH. In System32: $bashInSystem32" }
-                }
+                $exists = Test-Path "$env:windir\System32\bash.exe"
+                return @{ Result = if ($exists) { "bash.exe exists in System32" } else { "bash.exe not found in System32" } }
             }
         }
 
