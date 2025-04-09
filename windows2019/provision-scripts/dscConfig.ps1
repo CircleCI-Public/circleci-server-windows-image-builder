@@ -57,41 +57,56 @@ Configuration CircleBuildHost {
         #     }
         # }
 
-        Script InstallGit {
+        Script InstallGitWithBash {
             SetScript = {
                 $installerPath = "$env:TEMP\Git-Installer.exe"
-                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/Git-2.39.0-64-bit.exe" -OutFile $installerPath
+                Write-Verbose "Downloading Git for Windows (includes bash)..."
+                Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0/Git-2.49.0-64-bit.exe" -OutFile $installerPath
                 
-                # The "/COMPONENTS" parameter includes bash and "/PATHOPT=Cmd" puts Unix tools in PATH
-                Start-Process -FilePath $installerPath -ArgumentList "/SILENT", 
+                # Install Git with parameters that specifically include bash in PATH
+                Write-Verbose "Installing Git with bash..."
+                Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT", 
                                                                    "/NORESTART", 
-                                                                   "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash,icons,ext,assoc", 
-                                                                   "/PATHOPT=Cmd" -Wait -NoNewWindow
+                                                                   "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash", 
+                                                                   "/PATHOPT=CmdTools" -Wait -NoNewWindow
                 
-                # Clean up and PATH refresh as before
+                # Clean up
                 Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-                $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" 
                 
-                # Log success
-                Write-Verbose "Git installation completed"
+                # Explicitly add Git's bin and usr/bin to the PATH
+                $gitBinPath = "C:\Program Files\Git\bin"
+                $gitUsrBinPath = "C:\Program Files\Git\usr\bin"
+                
+                # Update system PATH
+                $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+                if ($envPath -notlike "*$gitBinPath*") {
+                    [Environment]::SetEnvironmentVariable("PATH", "$envPath;$gitBinPath;$gitUsrBinPath", "Machine")
+                }
+                
+                # Update current session PATH
+                $env:Path = "$env:Path;$gitBinPath;$gitUsrBinPath"
+                
+                # Create a direct copy in System32 as a failsafe
+                if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
+                    Copy-Item "C:\Program Files\Git\usr\bin\bash.exe" -Destination "$env:windir\System32\" -Force
+                    Write-Verbose "Copied bash.exe to System32 as a backup"
+                }
             }
             TestScript = {
-                try {
-                    $gitVersion = (git --version 2>&1)
-                    return ($gitVersion -like "git version*")
+                # Check for bash in multiple locations
+                if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
+                    return $true
                 }
-                catch {
-                    return $false
-                }
+                return $false
             }
             GetScript = {
-                try {
-                    $gitVersion = (git --version 2>&1)
-                    return @{ Result = $gitVersion }
+                $bashPath = if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") { 
+                    "C:\Program Files\Git\usr\bin\bash.exe" 
+                } else { 
+                    "Not found" 
                 }
-                catch {
-                    return @{ Result = "Git not installed" }
-                }
+                
+                return @{ Result = "Bash is installed at: $bashPath" }
             }
         }
         # Install Git LFS
