@@ -85,6 +85,8 @@ Configuration CircleBuildHost {
  
                  # Update current session PATH
                  $env:Path = "$env:Path;$gitBinPath;$gitUsrBinPath"
+                 [Environment]::SetEnvironmentVariable('PATH', "$([Environment]::GetEnvironmentVariable('PATH', 'Machine'));C:\Program Files\Git\usr\bin\bash.exe", 'Machine')
+                 Write-Output "BASH added to PATH"
  
                  # Create a direct copy in System32 as a failsafe
                  if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
