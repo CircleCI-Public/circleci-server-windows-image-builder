@@ -15,7 +15,7 @@ Configuration CircleBuildHost {
         #         # Download Git for Windows portable
         #         Write-Host "Downloading Bash Hopefully"
         #         $portableGitPath = "$env:TEMP\PortableGit.exe"
-        #         Write-Verbose "Downloading Git for Windows portable..."
+        #         Write-Host "Downloading Git for Windows portable..."
         #         Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/PortableGit-2.39.0-64-bit.7z.exe" -OutFile $portableGitPath
                 
         #         # Create a directory for extraction
@@ -25,11 +25,11 @@ Configuration CircleBuildHost {
         #         }
                 
         #         # Extract the portable Git (self-extracting 7z)
-        #         Write-Verbose "Extracting portable Git..."
+        #         Write-Host "Extracting portable Git..."
         #         Start-Process -FilePath $portableGitPath -ArgumentList "-y", "-o$extractPath" -Wait -NoNewWindow
                 
         #         # Copy bash.exe directly to System32
-        #         Write-Verbose "Copying bash.exe to System32..."
+        #         Write-Host "Copying bash.exe to System32..."
         #         $bashSource = "$extractPath\bin\bash.exe"
         #         if (Test-Path $bashSource) {
         #             # Also copy necessary DLLs
@@ -46,7 +46,7 @@ Configuration CircleBuildHost {
         #         # This is more reliable than changing environment variables
         #         New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Force | Out-Null
                 
-        #         Write-Verbose "Bash installation completed"
+        #         Write-Host "Bash installation completed"
         #     }
         #     TestScript = {
         #         return (Test-Path "$env:windir\System32\bash.exe")
@@ -60,11 +60,11 @@ Configuration CircleBuildHost {
         Script InstallGitWithBash {
              SetScript = {
                  $installerPath = "$env:TEMP\Git-Installer.exe"
-                 Write-Verbose "Downloading Git for Windows (includes bash)..."
+                 Write-Host "Downloading Git for Windows (includes bash)..."
                  Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0/Git-2.49.0-64-bit.exe" -OutFile $installerPath
  
                  # Install Git with parameters that specifically include bash in PATH
-                 Write-Verbose "Installing Git with bash..."
+                 Write-Host "Installing Git with bash..."
                  Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT", 
                                                                     "/NORESTART", 
                                                                     "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash", 
@@ -86,12 +86,12 @@ Configuration CircleBuildHost {
                  # Update current session PATH
                  $env:Path = "$env:Path;$gitBinPath;$gitUsrBinPath"
                  [Environment]::SetEnvironmentVariable('PATH', "$([Environment]::GetEnvironmentVariable('PATH', 'Machine'));C:\Program Files\Git\usr\bin\bash.exe", 'Machine')
-                 Write-Output "BASH added to PATH"
+                 Write-Host "BASH added to PATH"
  
                  # Create a direct copy in System32 as a failsafe
                  if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
                      Copy-Item "C:\Program Files\Git\usr\bin\bash.exe" -Destination "$env:windir\System32\" -Force
-                     Write-Verbose "Copied bash.exe to System32 as a backup"
+                     Write-Host "Copied bash.exe to System32 as a backup"
                  }
              }
              TestScript = {
@@ -116,7 +116,7 @@ Configuration CircleBuildHost {
             SetScript = {
                 # First install Git if it's not already installed
                 if (-not (Test-Path "C:\Program Files\Git")) {
-                    Write-Verbose "BASH_FINDER: Git not found, installing now"
+                    Write-Host "BASH_FINDER: Git not found, installing now"
                     $installerPath = "$env:TEMP\Git-Installer.exe"
                     Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0/Git-2.49.0-64-bit.exe" -OutFile $installerPath
                     
@@ -127,13 +127,13 @@ Configuration CircleBuildHost {
                                                                        "/PATHOPT=CmdTools" -Wait -NoNewWindow
                     
                     Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
-                    Write-Verbose "BASH_FINDER: Git installation completed"
+                    Write-Host "BASH_FINDER: Git installation completed"
                 } else {
-                    Write-Verbose "BASH_FINDER: Git already installed"
+                    Write-Host "BASH_FINDER: Git already installed"
                 }
                 
                 # Now search for bash.exe with distinctive log markers
-                Write-Verbose "BASH_FINDER: Beginning search for bash.exe locations"
+                Write-Host "BASH_FINDER: Beginning search for bash.exe locations"
                 $bashPaths = @()
                 
                 # Check common locations
@@ -148,31 +148,31 @@ Configuration CircleBuildHost {
                 foreach ($location in $locations) {
                     if (Test-Path "$location\bash.exe") {
                         $bashPaths += "$location\bash.exe"
-                        Write-Verbose "BASH_FINDER_LOCATION: Found bash.exe at $location\bash.exe"
+                        Write-Host "BASH_FINDER_LOCATION: Found bash.exe at $location\bash.exe"
                     } else {
-                        Write-Verbose "BASH_FINDER: No bash.exe at $location"
+                        Write-Host "BASH_FINDER: No bash.exe at $location"
                     }
                 }
                 
                 # Look through the entire Git directory recursively
-                Write-Verbose "BASH_FINDER: Starting recursive search in Git directory"
+                Write-Host "BASH_FINDER: Starting recursive search in Git directory"
                 if (Test-Path "C:\Program Files\Git") {
                     $foundBash = Get-ChildItem -Path "C:\Program Files\Git" -Filter "bash.exe" -Recurse -ErrorAction SilentlyContinue
                     foreach ($bash in $foundBash) {
                         $bashPaths += $bash.FullName
-                        Write-Verbose "BASH_FINDER_LOCATION: Found bash.exe at $($bash.FullName)"
+                        Write-Host "BASH_FINDER_LOCATION: Found bash.exe at $($bash.FullName)"
                     }
                 }
                 
                 # Check if bash.exe is already in System32
                 if (Test-Path "$env:windir\System32\bash.exe") {
-                    Write-Verbose "BASH_FINDER_LOCATION: bash.exe already exists in System32"
+                    Write-Host "BASH_FINDER_LOCATION: bash.exe already exists in System32"
                 }
                 
                 # Copy to System32 if found anywhere
                 if ($bashPaths.Count -gt 0) {
                     Copy-Item $bashPaths[0] -Destination "$env:windir\System32\bash.exe" -Force
-                    Write-Verbose "BASH_FINDER: Copied $($bashPaths[0]) to System32"
+                    Write-Host "BASH_FINDER: Copied $($bashPaths[0]) to System32"
                     
                     # Add directory to PATH
                     $bashDir = [System.IO.Path]::GetDirectoryName($bashPaths[0])
@@ -180,21 +180,21 @@ Configuration CircleBuildHost {
                     if ($envPath -notlike "*$bashDir*") {
                         [Environment]::SetEnvironmentVariable("PATH", "$envPath;$bashDir", "Machine")
                         $env:Path = "$env:Path;$bashDir"
-                        Write-Verbose "BASH_FINDER: Added $bashDir to PATH"
+                        Write-Host "BASH_FINDER: Added $bashDir to PATH"
                     }
                 } else {
-                    Write-Verbose "BASH_FINDER_ERROR: No bash.exe found in any location!"
+                    Write-Host "BASH_FINDER_ERROR: No bash.exe found in any location!"
                 }
                 
                 # Print current PATH for debugging
-                Write-Verbose "BASH_FINDER_PATH: Current PATH is $env:Path"
+                Write-Host "BASH_FINDER_PATH: Current PATH is $env:Path"
                 
                 # Try Get-Command to see if it works now
                 try {
                     $bashCmd = Get-Command "bash.exe" -ErrorAction Stop
-                    Write-Verbose "BASH_FINDER_SUCCESS: Get-Command found bash.exe at $($bashCmd.Source)"
+                    Write-Host "BASH_FINDER_SUCCESS: Get-Command found bash.exe at $($bashCmd.Source)"
                 } catch {
-                    Write-Verbose "BASH_FINDER_ERROR: Get-Command cannot find bash.exe. Error: $_"
+                    Write-Host "BASH_FINDER_ERROR: Get-Command cannot find bash.exe. Error: $_"
                 }
             }
             TestScript = {
