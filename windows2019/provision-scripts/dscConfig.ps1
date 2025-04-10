@@ -9,53 +9,6 @@ Configuration CircleBuildHost {
             RebootNodeIfNeeded = $False
         }
         CircleUsers "users" { }
-        
-        # Script InstallBashDirectly {
-        #     SetScript = {
-        #         # Download Git for Windows portable
-        #         Write-Host "Downloading Bash Hopefully"
-        #         $portableGitPath = "$env:TEMP\PortableGit.exe"
-        #         Write-Host "Downloading Git for Windows portable..."
-        #         Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.39.0.windows.1/PortableGit-2.39.0-64-bit.7z.exe" -OutFile $portableGitPath
-                
-        #         # Create a directory for extraction
-        #         $extractPath = "C:\GitPortable"
-        #         if (-not (Test-Path $extractPath)) {
-        #             New-Item -Path $extractPath -ItemType Directory -Force
-        #         }
-                
-        #         # Extract the portable Git (self-extracting 7z)
-        #         Write-Host "Extracting portable Git..."
-        #         Start-Process -FilePath $portableGitPath -ArgumentList "-y", "-o$extractPath" -Wait -NoNewWindow
-                
-        #         # Copy bash.exe directly to System32
-        #         Write-Host "Copying bash.exe to System32..."
-        #         $bashSource = "$extractPath\bin\bash.exe"
-        #         if (Test-Path $bashSource) {
-        #             # Also copy necessary DLLs
-        #             Copy-Item "$extractPath\bin\*.dll" -Destination "$env:windir\System32\" -Force -ErrorAction SilentlyContinue
-        #             Copy-Item $bashSource -Destination "$env:windir\System32\bash.exe" -Force
-        #         } else {
-        #             Write-Error "bash.exe not found in extracted Git portable!"
-        #         }
-                
-        #         # Clean up
-        #         Remove-Item $portableGitPath -Force -ErrorAction SilentlyContinue
-                
-        #         # Create a registry entry to force PATH refresh in all sessions
-        #         # This is more reliable than changing environment variables
-        #         New-Item -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment" -Force | Out-Null
-                
-        #         Write-Host "Bash installation completed"
-        #     }
-        #     TestScript = {
-        #         return (Test-Path "$env:windir\System32\bash.exe")
-        #     }
-        #     GetScript = {
-        #         $exists = Test-Path "$env:windir\System32\bash.exe"
-        #         return @{ Result = if ($exists) { "bash.exe exists in System32" } else { "bash.exe not found in System32" } }
-        #     }
-        # }
 
         Script InstallGitWithBash {
              SetScript = {
@@ -118,7 +71,7 @@ Configuration CircleBuildHost {
                 if (-not (Test-Path "C:\Program Files\Git")) {
                     Write-Host "BASH_FINDER: Git not found, installing now"
                     $installerPath = "$env:TEMP\Git-Installer.exe"
-                    Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0/Git-2.49.0-64-bit.exe" -OutFile $installerPath
+                    Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0.windows.1/Git-2.49.0-64-bit.exe" -OutFile $installerPath
                     
                     # Install Git with parameters that include bash
                     Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT", 

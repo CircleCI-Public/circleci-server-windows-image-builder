@@ -18,7 +18,7 @@ filters: &filters
 library:
   build_image_2019: &build_image_2019
     docker:
-      - image: hashicorp/packer:1.4.5
+      - image: hashicorp/packer:1.12
     resource_class: small
     steps:
       - run:
