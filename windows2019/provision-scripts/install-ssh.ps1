@@ -69,5 +69,5 @@ Write-Host "Done"
 
 # Set bash as the default shell for SSH.
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-$BashCommand = Get-Command "bash.exe"
+#$BashCommand = Get-Command "bash.exe"
 New-ItemProperty -Path "HKLM:\SOFTWARE\OpenSSH" -Name DefaultShell -Value $BashCommand.source -PropertyType String -Force
