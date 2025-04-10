@@ -40,20 +40,36 @@ Configuration CircleBuildHost {
                     Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
                     Write-Output "BASH_FINDER: Git installation completed"
                     
-                    # Check if bash.exe exists and copy to System32
-                    $possibleLocations = @(
-                        "C:\Program Files\Git\bin\bash.exe",
-                        "C:\Program Files\Git\usr\bin\bash.exe"
-                    )
+                    # Check if bash.exe exists
+                    $gitBashPath = "C:\Program Files\Git\usr\bin\bash.exe"
                     
-                    foreach ($location in $possibleLocations) {
-                        if (Test-Path $location) {
-                            Write-Output "BASH_FINDER_LOCATION: Found bash.exe at $location"
-                            Copy-Item $location -Destination "$env:windir\System32\bash.exe" -Force
-                            Write-Output "BASH_FINDER: Copied bash.exe to System32"
+                    if (Test-Path $gitBashPath) {
+                        Write-Output "BASH_FINDER_LOCATION: Found bash.exe at $gitBashPath"
+                        
+                        # Add to PATH
+                        $bashDir = [System.IO.Path]::GetDirectoryName($gitBashPath)
+                        $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+                        if ($envPath -notlike "*$bashDir*") {
+                            [Environment]::SetEnvironmentVariable("PATH", "$envPath;$bashDir", "Machine")
+                            $env:Path = "$env:Path;$bashDir"
+                            Write-Output "BASH_FINDER: Added $bashDir to PATH"
+                        }
+                        
+                        # Remove bash.exe from System32 if it exists
+                        if (Test-Path "$env:windir\System32\bash.exe") {
+                            Remove-Item "$env:windir\System32\bash.exe" -Force
+                            Write-Output "BASH_FINDER: Removed bash.exe from System32"
+                        }
+                    } else {
+                        Write-Output "BASH_FINDER_ERROR: bash.exe not found at expected location $gitBashPath"
+                        
+                        # Try to find bash.exe elsewhere in Git installation
+                        $foundBash = Get-ChildItem -Path "C:\Program Files\Git" -Filter "bash.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+                        if ($foundBash) {
+                            Write-Output "BASH_FINDER_LOCATION: Found alternative bash.exe at $($foundBash.FullName)"
                             
                             # Add to PATH
-                            $bashDir = [System.IO.Path]::GetDirectoryName($location)
+                            $bashDir = $foundBash.DirectoryName
                             $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
                             if ($envPath -notlike "*$bashDir*") {
                                 [Environment]::SetEnvironmentVariable("PATH", "$envPath;$bashDir", "Machine")
@@ -63,7 +79,7 @@ Configuration CircleBuildHost {
                         }
                     }
                     
-                    # Check if bash.exe is now available
+                    # Check if bash.exe is now available in PATH
                     try {
                         $bashCmd = Get-Command "bash.exe" -ErrorAction Stop
                         Write-Output "BASH_FINDER_SUCCESS: Get-Command found bash.exe at $($bashCmd.Source)"
@@ -75,11 +91,20 @@ Configuration CircleBuildHost {
                 }
             }
             TestScript = {
-                # Always run this script
+                # Check if Git is already installed with bash
+                if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
+                    $bashDir = "C:\Program Files\Git\usr\bin"
+                    $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+                    if ($envPath -like "*$bashDir*") {
+                        return $true
+                    }
+                }
                 return $false
             }
             GetScript = {
-                return @{ Result = "Completed bash installation attempt" }
+                $bashPath = "C:\Program Files\Git\usr\bin\bash.exe"
+                $exists = Test-Path $bashPath
+                return @{ Result = if ($exists) { "Git bash is installed at: $bashPath" } else { "Git bash is not installed" } }
             }
         }
 
