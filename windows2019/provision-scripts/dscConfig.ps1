@@ -11,59 +11,77 @@ Configuration CircleBuildHost {
         CircleUsers "users" { }
 
         Script InstallGitWithBash {
-             SetScript = {
-                 $installerPath = "$env:TEMP\Git-Installer.exe"
-                 Write-Host "Downloading Git for Windows (includes bash)..."
-                 Invoke-WebRequest -Uri "https://github.com/git-for-windows/git/releases/download/v2.49.0/Git-2.49.0-64-bit.exe" -OutFile $installerPath
- 
-                 # Install Git with parameters that specifically include bash in PATH
-                 Write-Host "Installing Git with bash..."
-                 Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT", 
-                                                                    "/NORESTART", 
-                                                                    "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash", 
-                                                                    "/PATHOPT=CmdTools" -Wait -NoNewWindow
- 
-                 # Clean up
-                 Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
- 
-                 # Explicitly add Git's bin and usr/bin to the PATH
-                 $gitBinPath = "C:\Program Files\Git\bin"
-                 $gitUsrBinPath = "C:\Program Files\Git\usr\bin"
- 
-                 # Update system PATH
-                 $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
-                 if ($envPath -notlike "*$gitBinPath*") {
-                     [Environment]::SetEnvironmentVariable("PATH", "$envPath;$gitBinPath;$gitUsrBinPath", "Machine")
-                 }
- 
-                 # Update current session PATH
-                 $env:Path = "$env:Path;$gitBinPath;$gitUsrBinPath"
-                 [Environment]::SetEnvironmentVariable('PATH', "$([Environment]::GetEnvironmentVariable('PATH', 'Machine'));C:\Program Files\Git\usr\bin\bash.exe", 'Machine')
-                 Write-Host "BASH added to PATH"
- 
-                 # Create a direct copy in System32 as a failsafe
-                 if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
-                     Copy-Item "C:\Program Files\Git\usr\bin\bash.exe" -Destination "$env:windir\System32\" -Force
-                     Write-Host "Copied bash.exe to System32 as a backup"
-                 }
-             }
-             TestScript = {
-                 # Check for bash in multiple locations
-                 if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") {
-                     return $true
-                 }
-                 return $false
-             }
-             GetScript = {
-                 $bashPath = if (Test-Path "C:\Program Files\Git\usr\bin\bash.exe") { 
-                     "C:\Program Files\Git\usr\bin\bash.exe" 
-                 } else { 
-                     "Not found" 
-                 }
- 
-                 return @{ Result = "Bash is installed at: $bashPath" }
-             }
-         }
+            SetScript = {
+                # Use the correct URL for downloading Git
+                $gitInstallerUrl = "https://github.com/git-for-windows/git/releases/download/v2.49.0.windows.1/Git-2.49.0-64-bit.exe"
+                $installerPath = "$env:TEMP\Git-Installer.exe"
+                
+                Write-Output "BASH_FINDER: Attempting to download Git from $gitInstallerUrl"
+                
+                try {
+                    # Try using System.Net.WebClient instead of Invoke-WebRequest
+                    $webClient = New-Object System.Net.WebClient
+                    $webClient.DownloadFile($gitInstallerUrl, $installerPath)
+                    Write-Output "BASH_FINDER: Download completed successfully"
+                }
+                catch {
+                    Write-Output "BASH_FINDER_ERROR: Download failed with error: $_"
+                    throw "Unable to download Git installer"
+                }
+                
+                if (Test-Path $installerPath) {
+                    # Install Git with parameters that include bash
+                    Write-Output "BASH_FINDER: Installing Git with bash..."
+                    Start-Process -FilePath $installerPath -ArgumentList "/VERYSILENT", 
+                                                                     "/NORESTART", 
+                                                                     "/COMPONENTS=ext\reg\shellhere,assoc,assoc_sh,gitlfs,bash", 
+                                                                     "/PATHOPT=CmdTools" -Wait -NoNewWindow
+                    
+                    Remove-Item $installerPath -Force -ErrorAction SilentlyContinue
+                    Write-Output "BASH_FINDER: Git installation completed"
+                    
+                    # Check if bash.exe exists and copy to System32
+                    $possibleLocations = @(
+                        "C:\Program Files\Git\bin\bash.exe",
+                        "C:\Program Files\Git\usr\bin\bash.exe"
+                    )
+                    
+                    foreach ($location in $possibleLocations) {
+                        if (Test-Path $location) {
+                            Write-Output "BASH_FINDER_LOCATION: Found bash.exe at $location"
+                            Copy-Item $location -Destination "$env:windir\System32\bash.exe" -Force
+                            Write-Output "BASH_FINDER: Copied bash.exe to System32"
+                            
+                            # Add to PATH
+                            $bashDir = [System.IO.Path]::GetDirectoryName($location)
+                            $envPath = [Environment]::GetEnvironmentVariable("PATH", "Machine")
+                            if ($envPath -notlike "*$bashDir*") {
+                                [Environment]::SetEnvironmentVariable("PATH", "$envPath;$bashDir", "Machine")
+                                $env:Path = "$env:Path;$bashDir"
+                                Write-Output "BASH_FINDER: Added $bashDir to PATH"
+                            }
+                        }
+                    }
+                    
+                    # Check if bash.exe is now available
+                    try {
+                        $bashCmd = Get-Command "bash.exe" -ErrorAction Stop
+                        Write-Output "BASH_FINDER_SUCCESS: Get-Command found bash.exe at $($bashCmd.Source)"
+                    } catch {
+                        Write-Output "BASH_FINDER_ERROR: Get-Command cannot find bash.exe. Error: $_"
+                    }
+                } else {
+                    Write-Output "BASH_FINDER_ERROR: Installer not found after download attempt"
+                }
+            }
+            TestScript = {
+                # Always run this script
+                return $false
+            }
+            GetScript = {
+                return @{ Result = "Completed bash installation attempt" }
+            }
+        }
 
         Script FindBash {
             SetScript = {
