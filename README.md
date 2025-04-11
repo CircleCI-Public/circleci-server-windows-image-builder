@@ -20,6 +20,8 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
     2. Make sure that you have **an access key** for an AWS IAM User that has sufficient permission to create AMIs using Packer. Refer to [documentation of Packer](https://www.packer.io/docs/builders/amazon#authentication) for details.
 
+    3. The minimum permissions required can be found in the `permissions` directory 
+
 2. First, **configure `circleci-server-image-builder` context that contains a required AWS access key as env vars**. In the context, populate the env vars below:
 
     * `AWS_ACCESS_KEY_ID` (Access key ID of your access key)
@@ -62,6 +64,7 @@ You can use either AWS or GCP to build your Windows machine image. Choose the on
 
 By default the disk image is set to 160 GB, but it can be updated based on your requirements.
 In the packer.yml, update the *launch_block_device_mappings* block for AWS and *disk_size* value for GCP
+You will need to update the `disk_size_gb` in your Machine Provisioner configmap to the same value changed above.
 
 ### Common troubleshooting
 
@@ -88,3 +91,14 @@ This jobs are commented by default, but you can uncomment if you prefer to run a
 * Copies: test results, the choco logs, and the software.md (a list of everything we install and test for the presence of) off of the host.
 * Installs the SSH server and enables the cleanup script that runs on shutdown (check out the aws packer scripts for exactly *how* that works).
 * Creates a Windows AMI.
+
+## Minimum requierments for a working Windows image in CircleCI
+For both Windows 2019 and Windows 2022, the minimum requirements for a succesful image:
+* Git with Bash
+* git-lfs
+* 7zip
+* Gzip
+* Sysinternals
+
+For Windows 2019, these are defined in the CircleCIDSC package [here](https://github.com/CircleCI-Public/CircleCIDSC/blob/main/DSCResources/CircleBuildAgentPreReq/CircleBuildAgentPreReq.schema.psm1).
+For Windows 2022, these are defined in the `software.yml` [here](https://github.com/CircleCI-Public/circleci-server-windows-image-builder/blob/master/windows2022/software.yml)
