@@ -13,7 +13,7 @@ Configuration CircleBuildHost {
         #By default, this installs the required dependencies for a CircleCI job to run. 
         #Things such as the AWS CLI, Python, Golang will not be installed by default. 
         #Please uncomment anything you would like to have installed by default.
-        #CircleUsers and CircleBuildAgentPreReq are required.
+        #DO NOT delete CircleUsers and CircleBuildAgentPreReq, as they are required for CircleCI jobs to run.
 
         CircleUsers "users" { } # https://github.com/CircleCI-Public/CircleCIDSC/blob/main/DSCResources/CircleUsers/CircleUsers.schema.psm1
         CircleBuildAgentPreReq buildAgentPreReq { } # https://github.com/CircleCI-Public/CircleCIDSC/blob/main/DSCResources/CircleBuildAgentPreReq/CircleBuildAgentPreReq.schema.psm1

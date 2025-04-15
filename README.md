@@ -12,7 +12,7 @@ Please note that Windows images are built on CircleCI, so we suggest you run thr
 
 You can use either AWS or GCP to build your Windows machine image. Choose the one your server instance is running in.
 
-By default, these images now build on the minimum required dependencies. This allows a ~30 minute build time to verify that your CircleCI Server environment can run a Windows build. 
+By default, these images now build on the minimum required dependencies. This allows for a shorter build time to verify that your CircleCI Server environment can run a Windows build. 
 
 If you'd like to have additional dependencies installed, please uncomment anything necessary for [windows-2019](https://github.com/CircleCI-Public/circleci-server-windows-image-builder/blob/master/windows2019/provision-scripts/dscConfig.ps1) or [windows-2022](https://github.com/CircleCI-Public/circleci-server-windows-image-builder/blob/master/windows2022/software.yml).
 
