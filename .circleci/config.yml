@@ -12,6 +12,7 @@ filters: &filters
   branches:
     only: 
     - master
+    - za/aws-test
 
 
 library:
@@ -589,7 +590,7 @@ workflows:
           build_if_changed: "windows2022"
           source_dirs: "windows2022"
           packer_provider: "amazon-ebs"
-          branch: test/install-vs-asadmin
+          branch: main
           context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
 
   # Uncomment this to run the instance termination cronjob
