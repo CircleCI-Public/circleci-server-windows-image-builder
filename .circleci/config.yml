@@ -590,7 +590,7 @@ workflows:
           build_if_changed: "windows2022"
           source_dirs: "windows2022"
           packer_provider: "amazon-ebs"
-          branch: main
+          branch: za/admin-test-aws
           context: [CPE_ORBS_AWS, SLACK_NOTIFICATIONS_TEST]
 
   # Uncomment this to run the instance termination cronjob
